@@ -7,6 +7,7 @@ const path = require('path');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'as-server-'));
 process.env.AGENT_STANDUP_KOKORO_DIR = tmp;
+process.env.AGENT_STANDUP_PREFS = path.join(tmp, 'prefs', 'prefs.json');
 process.env.AGENT_STANDUP_KOKORO_WORKER = path.join(__dirname, 'stub-worker.js');
 const kokoro = require('../kokoro.js');
 const { start, shutdown } = require('../server.js');
@@ -59,4 +60,15 @@ test('streamed kokoro tts sends one frame per piece, then serves the cached line
   const bad = await get('/api/tts?engine=kokoro&stream=1&voice=Samantha&rate=180&text=hello');
   assert.equal(bad.status, 400);
   kokoro.shutdown();
+});
+
+test('settings persist on the server, served as a script the page loads first', async () => {
+  assert.deepEqual(await (await get('/api/prefs')).json(), {});
+  assert.equal(await (await get('/api/prefs.js')).text(), 'window.SAVED_PREFS = null;');
+  const put = await fetch(base + '/api/prefs', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang: 'en', voiceSpeed: 1.3 }) });
+  assert.equal((await put.json()).ok, true);
+  assert.deepEqual(await (await get('/api/prefs')).json(), { lang: 'en', voiceSpeed: 1.3 });
+  assert.equal(await (await get('/api/prefs.js')).text(), 'window.SAVED_PREFS = {"lang":"en","voiceSpeed":1.3};');
+  const bad = await fetch(base + '/api/prefs', { method: 'PUT', body: '[1]' }); assert.equal(bad.status, 400);
+  assert.deepEqual(JSON.parse(fs.readFileSync(process.env.AGENT_STANDUP_PREFS, 'utf8')), { lang: 'en', voiceSpeed: 1.3 });
 });

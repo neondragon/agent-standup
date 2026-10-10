@@ -14,6 +14,10 @@ const PORT = process.env.PORT || 4747;
 // Same place Claude Code writes to: honours CLAUDE_CONFIG_DIR (custom config dirs are common on Linux); AGENT_STANDUP_PROJECTS overrides it.
 const ROOT = process.env.AGENT_STANDUP_PROJECTS || path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
 const PUBLIC = path.join(__dirname, 'public');
+// Settings live here, not in the page's localStorage: the server port changes between VS Code windows and reloads, and localStorage is per origin (port included), so the page kept forgetting them.
+const PREFS = process.env.AGENT_STANDUP_PREFS || (process.platform === 'win32' ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'agent-standup', 'prefs.json') : path.join(os.homedir(), '.config', 'agent-standup', 'prefs.json'));
+function readPrefs() { try { const v = JSON.parse(fs.readFileSync(PREFS, 'utf8')); return v && typeof v === 'object' && !Array.isArray(v) ? v : null; } catch { return null; } }
+function writePrefs(v) { fs.mkdirSync(path.dirname(PREFS), { recursive: true }); const tmp = PREFS + '.' + process.pid + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(v, null, 1)); fs.renameSync(tmp, PREFS); }
 
 const blocks = (rec) => {
   const c = rec.message && rec.message.content;
@@ -515,6 +519,12 @@ function start(port = PORT) {
       if (audioOwner.id && Date.now() - audioOwner.seen > 6000) audioOwner = { id: null, seen: 0 };
       return json({ owner: audioOwner.id });
     }
+    if (url.pathname === '/api/prefs.js') { res.writeHead(200, { 'content-type': 'application/javascript', 'cache-control': 'no-store' }); return res.end('window.SAVED_PREFS = ' + JSON.stringify(readPrefs()) + ';'); }   // loaded by the page before its own script, so settings are there synchronously
+    if (url.pathname === '/api/prefs' && (req.method === 'PUT' || req.method === 'POST')) {
+      let body = ''; req.on('data', (d) => (body += d));
+      return req.on('end', () => { try { const v = JSON.parse(body); if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('prefs must be an object'); writePrefs(v); json({ ok: true }); } catch (e) { json({ error: String(e.message || e) }, 400); } });
+    }
+    if (url.pathname === '/api/prefs') return json(readPrefs() || {});
     if (url.pathname === '/api/health') return json({ claude: findClaude(), apiKey: !!process.env.ANTHROPIC_API_KEY, trError: lastTrError, platform: process.platform });
     if (url.pathname === '/api/warm') { trWorkers.forEach((w) => { if (!w.p) w.start(); }); return json({ ok: true }); }
     if (url.pathname === '/api/voices') return json(voicesFor(url.searchParams.get('engine') || 'system', url.searchParams.get('dtype')));

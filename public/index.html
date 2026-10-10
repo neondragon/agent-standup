@@ -223,6 +223,7 @@
   .node.working { border-color:var(--warn) } .node.done { opacity:.6 } .node.speaking { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,156,255,.3) }
   .caret { cursor:pointer; color:var(--dim); width:16px; display:inline-block; user-select:none }
 </style>
+<script src="/api/prefs.js"></script>
 </head>
 <body>
 <header>
@@ -308,11 +309,15 @@ const Q = new URLSearchParams(location.search);
 const EMBED = Q.get('embed') === '1' || window.parent !== window;
 
 let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, kokoroDtype: 'q8', userVoice: '', readLen: 'full', roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
-try { Object.assign(prefs, JSON.parse(localStorage.getItem('cc.prefs') || '{}')); } catch {}
+let localPrefs = {}; try { localPrefs = JSON.parse(localStorage.getItem('cc.prefs') || '{}'); } catch {}
+const savedPrefs = window.SAVED_PREFS;   // kept by the local server (/api/prefs): the port changes between VS Code windows and reloads, and localStorage is per origin, so it alone forgot everything
+Object.assign(prefs, savedPrefs && typeof savedPrefs === 'object' ? savedPrefs : localPrefs);
 if (prefs.vstyle === 'babble') prefs.vstyle = 'animal', prefs.vstyleChosen = true;
 if (!prefs.vstyleChosen && (prefs.vstyle === 'animal' || prefs.vstyle === 'sims')) prefs.vstyle = 'cartoon';   // the gibberish styles are opt-in: understandable voices by default
 if (!prefs.vstyleChosen && prefs.kokoro !== false) prefs.vstyle = 'kokoro'; delete prefs.kokoro;   // the Kokoro switch of earlier builds is now the 'kokoro' style
-const savePrefs = () => { try { localStorage.setItem('cc.prefs', JSON.stringify(prefs)); } catch {} };
+let prefsT = 0;
+const savePrefs = () => { try { localStorage.setItem('cc.prefs', JSON.stringify(prefs)); } catch {} clearTimeout(prefsT); prefsT = setTimeout(() => fetch('/api/prefs', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(prefs), keepalive: true }).catch(() => {}), 250); };   // sliders fire a lot: one write per burst
+if (!(savedPrefs && typeof savedPrefs === 'object') && Object.keys(localPrefs).length) savePrefs();   // first run with a server store: carry over what this origin remembered
 const FR = () => prefs.lang === 'fr';
 const L = (fr, en) => (FR() ? fr : en);
 
