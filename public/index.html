@@ -100,8 +100,8 @@
   #pbadge { margin-left:auto; flex:none; background:rgba(240,160,32,.94); color:#201400; font-weight:600; font-size:11px; padding:1px 10px; border-radius:99px; white-space:nowrap }
   #present.has-todo #pcam { right:270px } #pcam { position:absolute; right:28px; bottom:22px; width:224px; height:166px; z-index:2; box-shadow:0 8px 24px rgba(0,0,0,.6); border-radius:14px }
   #pcam .tile { height:100%; display:block !important; animation:none } #pcam .bubble { display:none !important }   /* the presenter's own tile, moved here: every overlay comes with it; the caption bar carries the subtitle */
-  #pcap { display:none; position:absolute; left:24px; right:200px; bottom:20px; z-index:2; background:rgba(10,11,16,.84); backdrop-filter:blur(6px); border-radius:10px; padding:6px 12px; font-size:13px } #pcap:not(:empty) { display:block }
-  body.narrow #present { height:clamp(150px,36vh,260px) } body.narrow #pcam { width:150px; height:111px } body.narrow #pcap { right:150px }
+  #pcap { display:none; position:absolute; left:24px; right:24px; top:20px; z-index:2; background:rgba(10,11,16,.84); backdrop-filter:blur(6px); border-radius:10px; padding:6px 12px; font-size:13px } #pcap:not(:empty) { display:block }
+  body.narrow #present { height:clamp(150px,36vh,260px) } body.narrow #pcam { width:150px; height:111px } #present.has-todo #pcap { right:270px }   /* the subtitle sits at the top so it never hides the status bar; it steps aside for the todo panel */
   #gantt { display:none; flex:none; width:100%; background:#0f1118; border-top:1px solid var(--line); cursor:pointer }
   body.replay #gantt { display:block }
   aside { display:none; width:320px; flex:none; border-left:1px solid var(--line); background:var(--panel); flex-direction:column; min-height:0 }
