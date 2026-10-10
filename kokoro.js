@@ -1,5 +1,5 @@
 // Agent Standup — natural voices with Kokoro-82M (kokoro-js on ONNX Runtime), installed on demand outside the extension.
-// Nothing here runs until the user clicks Install in ⚙ → Sound. Design: docs/superpowers/specs/2026-10-10-kokoro-tts-design.md
+// Nothing here runs until the user clicks Install in ⚙ → Sound.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

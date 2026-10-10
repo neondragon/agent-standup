@@ -1,4 +1,4 @@
-// Meme mode: an optional costume over the call (design: docs/superpowers/specs/2026-10-10-meme-mode-design.md).
+// Meme mode: an optional costume over the call.
 // Airhorns, hitmarkers, lens flares, Impact captions, vine booms, sad trombones, star wipes, emoji rain. It never changes
 // what is shown or said, only how loudly. Off by default (⚙ → 🔥 Meme mode), intensity 1–11.
 //
