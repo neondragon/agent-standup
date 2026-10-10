@@ -125,7 +125,7 @@
   .tile svg { width:100%; height:100%; display:block }
   .tile.lead { order:-2 } .tile.focus { order:-3; grid-column:span var(--fcols,2); grid-row:span var(--fr,2) } .tile.speaking { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,156,255,.4), 0 10px 30px rgba(0,0,0,.55) }
   .tile.lead.speaking { border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,192,74,.4), 0 10px 30px rgba(0,0,0,.55) }
-  body.presenting .tile.focus { order:0; grid-column:auto; grid-row:auto } .tile.focus .bubble { font-size:16px; max-width:72% }
+  body.presenting .tile.focus { order:0; grid-column:auto; grid-row:auto } .tile.focus .bubble { font-size:16px }
   .tile.working { border-color:rgba(240,160,32,.8) } .tile.done { opacity:.78 }
   .tile.pop { animation:pop .6s } @keyframes pop { 35% { transform:scale(1.07); box-shadow:0 0 0 6px rgba(88,214,141,.5) } }
   .tag { position:absolute; left:6px; bottom:6px; right:6px; display:flex; gap:5px; pointer-events:none }
@@ -139,8 +139,8 @@
   .board .working { color:var(--gold) } .board .waiting { color:#8fd3ff } .board .blocked { color:#fff; background:#c0392b; border-color:#c0392b } .board .stalled { color:#1b1d27; background:#ffb347; border-color:#ffb347 } .board .done { color:var(--ok) }
   @media (max-width:1180px) { .board em { display:none } .meet { display:none } }
   @media (max-width:640px) { .board { display:none } }
-  .bubble { display:none; position:absolute; top:6px; left:6px; right:62px; background:#fff; color:#1b1d27; border-radius:11px; padding:6px 10px; font-size:12.5px; line-height:1.35; box-shadow:0 4px 14px rgba(0,0,0,.35); max-height:58%; overflow:hidden }
-  .tile.bye .bubble { display:block; font-size:13.5px; animation:fadein .25s } .tile.speaking .bubble { display:block; font-size:14.5px; max-height:50% } .bubble small { display:block; color:#6a6f85; font-size:10.5px }
+  .bubble { display:none; position:absolute; left:8px; right:8px; bottom:36px; background:rgba(10,11,16,.8); color:#fff; backdrop-filter:blur(5px); border-radius:8px; padding:5px 10px; font-size:12.5px; line-height:1.3; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.35); text-shadow:0 1px 2px rgba(0,0,0,.6) }   /* subtitles: the sentence being said */
+  .tile.bye .bubble { display:block; font-size:13.5px; animation:fadein .25s } .tile.speaking .bubble { display:block; font-size:14px } .bubble small { display:inline; color:#aab0c8; font-size:11px; margin-right:6px }
   .ticker { display:none; position:absolute; left:6px; right:6px; bottom:30px; font:10.5px/1.3 ui-monospace,Menlo,monospace; color:#fff; background:rgba(15,20,35,.8); border-radius:5px; padding:2px 7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .ticker.on { display:block } .ticker i { font-style:normal; color:#ffd24a } .ticker.flash { animation:flash .25s } @keyframes flash { from { background:#3b5bdb } }
   /* character animation: all state-driven from the tile's classes */
@@ -438,6 +438,31 @@ function short(t, max = 230) {
   const s = plain(t); if (s.length <= max) return s;
   const cut = s.slice(0, max), end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
   return end > 80 ? cut.slice(0, end + 1) : cut.replace(/\s+\S*$/, '') + '…';
+}
+// Subtitles: a line is shown one piece at a time, the piece being said. Same split as the worker's pieces() in kokoro-worker.js,
+// so a streamed Kokoro line advances exactly with its audio chunks; the other voices share the time out by length.
+function pieces(text) {
+  const out = [], sents = String(text).split(/(?<=[.!?…]["')\]]*)\s+/);
+  for (const s of sents) {
+    const t = s.trim(); if (!t) continue;
+    if (t.length <= 110) { out.push(t); continue; }
+    let cur = '';
+    for (const part of t.split(/(?<=[,;:—])\s+/)) { if (cur && cur.length + part.length > 90) { out.push(cur); cur = part; } else cur = cur ? cur + ' ' + part : part; }
+    if (cur) out.push(cur);
+  }
+  return out;
+}
+const capTimers = new Map();   // agent id → timers that advance its subtitle
+function setCaption(id, text) {
+  const say = S.say[id]; if (!say) return; say.cur = text;
+  const t = $('#t-' + id), b = t && t.querySelector('.bubble'); if (b) b.innerHTML = (say.label ? `<small>${esc(say.label)}</small>` : '') + esc(text);
+  if (S.present === id) $('#pcap').textContent = text;
+}
+function captionClear(id) { (capTimers.get(id) || []).forEach(clearTimeout); capTimers.delete(id); }
+function captionAt(id, text, ms) { const l = capTimers.get(id) || []; l.push(setTimeout(() => setCaption(id, text), Math.max(0, ms))); capTimers.set(id, l); }
+function captionSpread(id, text, totalMs, fromMs = 0) {   // no per-piece timing known: each piece gets time in proportion to its length
+  const ps = pieces(text); if (ps.length < 2) return; const n = ps.reduce((a, s) => a + s.length, 0); let t = fromMs;
+  ps.forEach((s, k) => { if (k) captionAt(id, s, t); t += totalMs * s.length / n; });
 }
 // make code-ish text pronounceable
 const speakable = (t) => t.replace(/(?:[\w.-]+\/)+([\w.-]+)/g, (m, f) => f.replace(/[._-]/g, ' ')).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_`*#<>{}\[\]|\\=~^]/g, ' ')
@@ -768,13 +793,15 @@ async function speakStream(text, voice, p, gain, token) {
   inNode.connect(an); an.connect(g); g.connect(AUD.voice);   // Kokoro is always heard clean: no cartoon FX chain
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
-  const srcs = new Set(); let at = 0, last = Promise.resolve();
+  const shown = pieces(S.say[p.id] ? S.say[p.id].text : text), said = pieces(text), caps = shown.length === said.length ? shown : said;   // what is displayed, aligned with what is said
+  const srcs = new Set(); let at = 0, last = Promise.resolve(), k = 0, first = null;
   const play = (pcm) => {
     const n = pcm.byteLength >> 1; if (!n) return;
     const buf = c.createBuffer(1, n, sr), ch = buf.getChannelData(0), v = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
     for (let i = 0; i < n; i++) ch[i] = v.getInt16(i * 2, true) / 32768;
     const src = c.createBufferSource(); src.buffer = buf; src.connect(inNode);
-    at = Math.max(at, c.currentTime + 0.03); src.start(at); const dur = buf.duration; at += dur;
+    at = Math.max(at, c.currentTime + 0.03); src.start(at); const dur = buf.duration;
+    if (caps[k] !== undefined && k) captionAt(p.id, caps[k], (at - c.currentTime) * 1000); if (!k) first = { at, dur }; k++; at += dur;
     srcs.add(src); AUD.live.add(src);
     last = new Promise((res) => { src.onended = () => { srcs.delete(src); AUD.live.delete(src); res(); }; setTimeout(res, (at - c.currentTime) * 1000 + 800); });   // from the scheduled end: chunks arrive while earlier ones still play
   };
@@ -789,6 +816,7 @@ async function speakStream(text, voice, p, gain, token) {
         play(pend.subarray(4, 4 + len)); pend = pend.slice(4 + len);
       }
     }
+    if (k === 1 && first && caps.length > 1) captionSpread(p.id, caps.join(' '), first.dur * 1000, (first.at - c.currentTime) * 1000);   // the whole line came as one chunk (cached): share it out
     if (!dead(token)) { let ended = false; last.then(() => (ended = true)); const by = Date.now() + Math.max(0, at - c.currentTime) * 1000 + 800; while (!ended && !dead(token) && Date.now() < by) await sleep(100); }   // wall clock cap: a suspended context never ends a source
   } finally { srcs.forEach((s) => { try { s.stop(); } catch {} AUD.live.delete(s); }); delete S.level[p.id]; }
 }
@@ -806,6 +834,7 @@ async function speakServer(text, p, gain, token, fr = FR()) {
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
   AUD.live.add(src);
+  const rateFx = prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro' ? 1 : (fxFor(p).rate || 1); captionSpread(p.id, S.say[p.id] ? S.say[p.id].text : text, buf.duration * 1000 / rateFx);
   let ended = false; src.onended = () => (ended = true); src.start(); const by = Date.now() + buf.duration * 1000 + 800;
   while (!ended && !dead(token) && Date.now() < by) await sleep(100);
   if (!ended) { try { src.stop(); } catch {} }
@@ -823,18 +852,18 @@ function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server
       if (i >= parts.length || done || dead(token)) return fin(true);
       const part = parts[i++].trim(); if (!part) return next();
       const u = new SpeechSynthesisUtterance(part); u.lang = fr ? 'fr-FR' : 'en-US'; u.voice = voice; u.pitch = prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro' ? 0.95 + ((p.vi >>> 5) % 5) * 0.03 : p.id === 'main' ? 0.8 : [1.5, 0.6, 1.2, 1.7, 0.9, 0.5, 1.35][(p.vi >>> 3) % 7]; u.rate = Math.min(2, 0.97 * spd() * vspeed());
-      u.onstart = () => (started = true); u.onend = () => setTimeout(next, 120); u.onerror = () => fin(started); synth.speak(u);
+      u.onstart = () => { started = true; setCaption(p.id, part.trim()); }; u.onend = () => setTimeout(next, 120); u.onerror = () => fin(started); synth.speak(u);
     };
     next();
   });
 }
 async function speakLine(text, p, primary, token, fr = FR()) {
-  if (AUD.off() || !prefs.voice) { if (!AUD.off() && prefs.office) AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); return sleep(estMs(text)); }
-  if (S.hurry && !(token && token.sample)) return sleep(estMs(text));
-  if ((prefs.vstyle === 'animal' || prefs.vstyle === 'sims') && AUD.ctx) { try { await speakBabble(text, p, primary ? 1 : 0.5, token); return; } catch {} }
+  if (AUD.off() || !prefs.voice) { if (!AUD.off() && prefs.office) AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); captionSpread(p.id, text, estMs(text)); return sleep(estMs(text)); }
+  if (S.hurry && !(token && token.sample)) { captionSpread(p.id, text, estMs(text)); return sleep(estMs(text)); }
+  if ((prefs.vstyle === 'animal' || prefs.vstyle === 'sims') && AUD.ctx) { try { captionSpread(p.id, text, estMs(text)); await speakBabble(text, p, primary ? 1 : 0.5, token); return; } catch {} }
   if (TTS.server && AUD.ctx) { try { await speakServer(text, p, primary ? 1 : 0.5, token, fr); return; } catch {} }
   if (primary && synth && !EMBED && (await speakBrowser(text, p, token, fr))) return;
-  AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); return sleep(estMs(text));
+  captionSpread(p.id, text, estMs(text)); AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); return sleep(estMs(text));
 }
 
 // =====================================================================
@@ -1107,9 +1136,9 @@ function renderPresent() {
   if (S.camFor !== id) { $('#pcam').innerHTML = avatarSVG(p, undefined, 'c' + p.gid + '_') + `<div class="tag"><b>${esc(p.name)}</b></div>`; S.camFor = id; }
   $('#pcam').classList.toggle('speaking', S.speakers.has(id));
 }
-function armPresent() {   // stays up while a command is still running, then ~4 s after the last action
+function armPresent() {   // stays up while a command is still running, then ~12 s after the last action (a line starting elsewhere does not dismiss it)
   clearTimeout(presentTimer); if (S.hold) return;
-  presentTimer = setTimeout(() => { if (S.present && S.run[S.present] && S.playing) armPresent(); else hidePresent(); }, 4200 / Math.max(1, spd() / 1.2));
+  presentTimer = setTimeout(() => { if (S.present && S.run[S.present] && S.playing) armPresent(); else hidePresent(); }, 12000 / Math.max(1, spd() / 1.2));
 }
 function showPresent(id) {
   if (S.boost > 1) return;   // catching up; a speaker does not block the screen share, the voice carries on underneath
@@ -1168,10 +1197,9 @@ setInterval(() => {
 const mouths = new Map();
 function startTalk(id, text, label) {
   const t = $('#t-' + id); if (!t) return;
-  if (S.present && S.present !== id) hidePresent();
-  if (!S.speakers.size && !(S.focusLock > Date.now())) setFocus(id); S.gone.delete(id); if (S.doneAt[id] != null) S.doneAt[id] = S.clock; t.style.display = ''; t.classList.add('speaking'); S.speakers.add(id); S.say[id] = { text, label }; AUD.duck(true);
-  const b = t.querySelector('.bubble'); b.innerHTML = (label ? `<small>${esc(label)}</small>` : '') + esc(text);
-  if (S.present === id) { $('#pcap').textContent = text; $('#pcam').classList.add('speaking'); }
+  if (!S.speakers.size && !(S.focusLock > Date.now())) setFocus(id); S.gone.delete(id); if (S.doneAt[id] != null) S.doneAt[id] = S.clock; t.style.display = ''; t.classList.add('speaking'); S.speakers.add(id); S.say[id] = { text, label, cur: text }; AUD.duck(true);
+  captionClear(id); setCaption(id, pieces(text)[0] || text);
+  if (S.present === id) $('#pcam').classList.add('speaking');
   const m = t.querySelector('.mouthE'); let open = false; clearInterval(mouths.get(id));
   mouths.set(id, setInterval(() => {
     const pm = S.present === id ? $('#pcam .mouthE') : null, lv = S.level[id]; if (lv) { const v = lv(); const ry = (.9 + Math.min(4.2, v * 28)).toFixed(1), rx = (4.8 - Math.min(1.1, v * 6)).toFixed(1); m.setAttribute('ry', ry); m.setAttribute('rx', rx); if (pm) { pm.setAttribute('ry', ry); pm.setAttribute('rx', rx); } }
@@ -1191,7 +1219,7 @@ function confetti() {
   for (let i = 0; i < 26; i++) { const c = document.createElement('i'); c.className = 'confetti'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % cols.length]; c.style.animationDelay = Math.random() * 0.6 + 's'; c.style.animationDuration = 1.8 + Math.random() * 1.4 + 's'; box.appendChild(c); setTimeout(() => c.remove(), 4200); }
 }
 function stopTalk(id) {
-  clearInterval(mouths.get(id)); mouths.delete(id); S.speakers.delete(id); if (!S.speakers.size) AUD.duck(false); if (S.focus === id && S.speakers.size) setFocus([...S.speakers][0]);
+  captionClear(id); clearInterval(mouths.get(id)); mouths.delete(id); S.speakers.delete(id); if (!S.speakers.size) AUD.duck(false); if (S.focus === id && S.speakers.size) setFocus([...S.speakers][0]);
   if (S.present === id) { $('#pcap').textContent = ''; $('#pcam').classList.remove('speaking'); const pm = $('#pcam .mouthE'); if (pm) { pm.setAttribute('ry', .9); pm.setAttribute('rx', 4.6); } }
   const t = $('#t-' + id); if (!t) return;
   t.classList.remove('speaking'); const m = t.querySelector('.mouthE'); if (m) { m.setAttribute('ry', .9); m.setAttribute('rx', 4.6); }
@@ -1552,7 +1580,7 @@ function tileOnCanvas(c, id, x, y, w, h, big) {
   c.lineWidth = sp ? 4 : 2; c.strokeStyle = sp ? (p.lead ? '#f5c04a' : '#7c9cff') : st === 'working' ? '#f0a020' : 'rgba(255,255,255,.14)'; c.strokeRect(x, y, w, h);
   c.font = `bold ${big ? 16 : 12}px sans-serif`; const nm = p.name + (st === 'done' ? ' ✓' : ''); c.fillStyle = 'rgba(0,0,0,.7)'; c.fillRect(x + 6, y + h - (big ? 30 : 22), c.measureText(nm).width + 12, big ? 24 : 18); c.fillStyle = '#fff'; c.fillText(nm, x + 12, y + h - (big ? 12 : 8));
   if (!big && S.lastTool[id] && st === 'working') { c.font = '10px monospace'; c.fillStyle = 'rgba(15,20,35,.85)'; c.fillRect(x, y, w, 15); c.fillStyle = '#ffd24a'; c.fillText(S.lastTool[id].slice(0, Math.floor(w / 6)), x + 4, y + 11); }
-  if (big && sp && S.say[id]) { c.font = '15px sans-serif'; const Ls = wrap(c, S.say[id].text, w - 40, 4), bh = Ls.length * 19 + 14; c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x + 10, y + 10, w - 20, bh, 10); c.fill(); c.fillStyle = '#1b1d27'; Ls.forEach((l, i) => c.fillText(l, x + 20, y + 30 + i * 19)); }
+  if (big && sp && S.say[id]) { c.font = '15px sans-serif'; const Ls = wrap(c, S.say[id].cur || S.say[id].text, w - 40, 4), bh = Ls.length * 19 + 14; c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x + 10, y + 10, w - 20, bh, 10); c.fill(); c.fillStyle = '#1b1d27'; Ls.forEach((l, i) => c.fillText(l, x + 20, y + 30 + i * 19)); }
 }
 function drawFrame(cv) {
   const c = cv.getContext('2d'), W = cv.width, H = cv.height; c.fillStyle = '#12131a'; c.fillRect(0, 0, W, H);
