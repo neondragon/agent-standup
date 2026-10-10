@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "start": "node server.js",
+    "test": "node --test test/",
     "package": "npx --yes @vscode/vsce package --allow-missing-repository --skip-license",
     "landing": "node scripts/build-landing.js",
     "capture": "node scripts/capture-demo.js all",

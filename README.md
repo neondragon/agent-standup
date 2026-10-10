@@ -163,13 +163,21 @@ Voices are generated on your machine and played identically in the editor and in
 
 If no voice is available the agents "mumble" instead. Each agent gets a stable voice from the best ones installed.
 
+### Natural voices (Kokoro)
+
+⚙ → Sound → **Natural voices (Kokoro)** replaces the system voices with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), a small neural model that runs on your CPU. Eight English characters and one French voice, assigned so each agent sounds different.
+
+Nothing is bundled: the first time, click **Install** in the same box. It runs `npm install kokoro-js` into `~/.cache/agent-standup/kokoro` (`%LOCALAPPDATA%\agent-standup\kokoro` on Windows) and fetches the model from Hugging Face on first use — about 520 MB once, then nothing leaves your machine. Needs `npm` (comes with Node.js). To remove it, delete that folder.
+
+The first line after a cold start takes a few seconds (model load); after that each line is ready before the previous one ends on a recent laptop. `AGENT_STANDUP_KOKORO_DTYPE=q4` (set in the environment of VS Code or `node server.js`) picks a faster, larger model (304 MB); `AGENT_STANDUP_KOKORO_DIR` moves the install folder. If Kokoro fails mid-session, the call falls back to the system voices.
+
 ## Translation (French ↔ English)
 
 Agent messages are in the language of the session. With French selected, each line is translated as it arrives using your local `claude` CLI (`claude -p`, Haiku) through two warm background workers: about 3–4 s per line once warm (the very first line takes ~10 s), then spoken. If a translation is not ready in time (7 s live), that line is read in the original language. The menu shows a hint if translation or the French voice is unavailable.
 
 Optional speed-up: set `ANTHROPIC_API_KEY` in the environment of VS Code / the server and translation calls the Anthropic API directly (~1–2 s).
 
-**Privacy & security:** everything runs locally. The server listens on `127.0.0.1` only and rejects requests that do not come from `localhost` (other websites and DNS-rebinding attempts get a 403), so no web page can read your sessions. Translation and jokes send the shortened agent lines to Claude through your own Claude Code login (or your API key if you set one). With English selected and music off, nothing leaves your machine. (Office music connects your browser to `icecast.radiofrance.fr` while it is on.)
+**Privacy & security:** everything runs locally. The server listens on `127.0.0.1` only and rejects requests that do not come from `localhost` (other websites and DNS-rebinding attempts get a 403), so no web page can read your sessions. Translation and jokes send the shortened agent lines to Claude through your own Claude Code login (or your API key if you set one). Natural voices download packages from npm and the model from Hugging Face once, when you click Install, and synthesize locally afterwards. With English selected and music off, nothing leaves your machine. (Office music connects your browser to `icecast.radiofrance.fr` while it is on.)
 
 ## Standalone (no VS Code)
 
@@ -222,4 +230,4 @@ MIT
 Agent Standup is free and MIT licensed. If it saves you time you can [buy the (replaced) dev a coffee](https://www.buymeacoffee.com/bored_dev_and_his_robots). I'm also available for work around AI agents and developer tooling: reach me through my GitHub profile, [Atoll92](https://github.com/Atoll92).
 
 ## Privacy and usage counting
-Agent Standup reads local session files and sends nothing anywhere by default. The only optional network uses are: French translation / jokes (your own Claude login, off unless you turn them on), the FIP radio stream (if you turn it on), and the **optional usage counter**: if you set `agentStandup.shareUsage` to `true` (off by default, and ignored when VS Code telemetry is off), the extension makes at most one empty request per day to a 1-pixel file in this repository's releases. There is no identifier and no content; GitHub sees your IP like for any download. It lets the maintainer count active installs (`npm run stats`).
+Agent Standup reads local session files and sends nothing anywhere by default. The only optional network uses are: French translation / jokes (your own Claude login, off unless you turn them on), the FIP radio stream (if you turn it on), the one-time download of natural voices (if you install them), and the **optional usage counter**: if you set `agentStandup.shareUsage` to `true` (off by default, and ignored when VS Code telemetry is off), the extension makes at most one empty request per day to a 1-pixel file in this repository's releases. There is no identifier and no content; GitHub sees your IP like for any download. It lets the maintainer count active installs (`npm run stats`).
