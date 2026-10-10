@@ -14,7 +14,7 @@ const fakeInstall = () => { const d = path.join(tmp, 'node_modules', 'kokoro-js'
 test('status on an empty dir', () => {
   const st = kokoro.status();
   assert.equal(st.installed, false); assert.equal(st.installing, false); assert.equal(st.ready, false);
-  assert.equal(st.dir, tmp); assert.equal(st.dtype, 'q8'); assert.equal(st.error, null); assert.equal(st.gaveUp, false);
+  assert.equal(st.dir, tmp); assert.equal(st.dtype, 'q4f16'); assert.equal(st.error, null); assert.equal(st.gaveUp, false);
 });
 
 test('voices: lead-first order, locales by prefix', () => {
@@ -31,10 +31,10 @@ test('speedFor maps wpm to a clamped Kokoro speed', () => {
 });
 
 test('setDtype switches the model and ignores junk', () => {
-  assert.equal(kokoro.dtype(), 'q8');
-  assert.equal(kokoro.setDtype('q8'), false); assert.equal(kokoro.setDtype('fp64'), false); assert.equal(kokoro.setDtype(''), false);
-  assert.equal(kokoro.setDtype('q4'), true); assert.equal(kokoro.dtype(), 'q4'); assert.equal(kokoro.status().dtype, 'q4');
-  assert.equal(kokoro.setDtype('q8'), true);
+  assert.equal(kokoro.dtype(), 'q4f16');
+  assert.equal(kokoro.setDtype('q4f16'), false); assert.equal(kokoro.setDtype('fp64'), false); assert.equal(kokoro.setDtype(''), false);
+  assert.equal(kokoro.setDtype('q8'), true); assert.equal(kokoro.dtype(), 'q8'); assert.equal(kokoro.status().dtype, 'q8');
+  assert.equal(kokoro.setDtype('q4f16'), true);
 });
 
 test('synth rejects when not installed', async () => {
@@ -57,4 +57,38 @@ test('synth writes a wav through the worker, restarts after a crash, gives up af
   assert.equal((await kokoro.synth('hello again', 'af_heart', 1, out, (pcm, s) => chunks.push([pcm.length, s]))).ok, true);
   assert.deepEqual(chunks, [[480, 0.01], [480, 0.01]]);
   kokoro.shutdown();
+});
+
+test('a streamed line (someone is listening) is made before lines prepared ahead of time', async () => {
+  fakeInstall(); kokoro._reset();
+  const order = [], wav = (n) => path.join(tmp, n + '.wav');
+  const jobs = ['ahead1', 'ahead2', 'ahead3'].map((t) => kokoro.synth(t, 'af_heart', 1, wav(t)).then(() => order.push(t)));
+  jobs.push(kokoro.synth('now', 'af_heart', 1, wav('now'), () => {}).then(() => order.push('now')));
+  await Promise.all(jobs);
+  assert.deepEqual(order, ['ahead1', 'now', 'ahead2', 'ahead3']);   // ahead1 was already in the worker; the rest wait
+  kokoro.shutdown();
+});
+
+test('a model change keeps the queued lines (made again by the new model), and shutdown fails them', async () => {
+  fakeInstall(); kokoro._reset();
+  const wav = (n) => path.join(tmp, n + '.wav');
+  const a = kokoro.synth('first', 'af_heart', 1, wav('first')), b = kokoro.synth('second', 'af_heart', 1, wav('second'));
+  assert.equal(kokoro.setDtype('q4'), true);
+  assert.equal((await a).ok, true); assert.equal((await b).ok, true);
+  assert.equal(kokoro.setDtype('q8'), true);
+  const c = kokoro.synth('third', 'af_heart', 1, wav('third'));
+  kokoro.shutdown();
+  await assert.rejects(c, /shut down/);
+  assert.equal((await kokoro.synth('fourth', 'af_heart', 1, wav('fourth'))).ok, true);   // the next request starts a worker again
+  kokoro.shutdown();
+});
+
+test('shutdown with a line in progress and more queued leaves no worker behind', async () => {
+  fakeInstall(); kokoro._reset();
+  const wav = (n) => path.join(tmp, n + '.wav');
+  const a = kokoro.synth('first', 'af_heart', 1, wav('first')), b = kokoro.synth('second', 'af_heart', 1, wav('second'));
+  kokoro.shutdown();
+  await assert.rejects(a, /shut down/); await assert.rejects(b, /shut down/);
+  await new Promise((r) => setTimeout(r, 200));   // a leaked worker would have reported ready by now
+  assert.equal(kokoro.status().ready, false);
 });

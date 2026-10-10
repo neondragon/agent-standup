@@ -248,7 +248,7 @@
   <button class="mi" data-t="voice"><span data-fr="Voix des agents" data-en="Agent voices">Voix des agents</span><i class="sw"></i></button>
   <div class="box" id="vstyleBox" style="display:flex;gap:6px;align-items:center"><select id="vstyle" style="flex:1;min-width:0"></select><button id="vtest" title="Test this voice">▶</button></div>
   <div class="box" id="kokoroBox" style="display:none"><button id="kokoroInstall"></button><div class="hint" id="kokoroHint" style="padding:2px 0 6px"></div></div>
-  <div class="box" id="kokoroOpts" style="display:none"><div class="lbl"><span data-fr="Modèle Kokoro" data-en="Kokoro model">Modèle Kokoro</span></div><select id="kdtype"><option value="q8" data-fr="q8 — meilleure qualité (97 Mo)" data-en="q8 — best quality (97 MB)">q8 — meilleure qualité (97 Mo)</option><option value="q4" data-fr="q4 — plus rapide (304 Mo de plus)" data-en="q4 — faster (304 MB more)">q4 — plus rapide (304 Mo de plus)</option></select><div class="hint" id="kdtypeHint" style="display:none;padding:0 0 6px"></div></div>
+  <div class="box" id="kokoroOpts" style="display:none"><div class="lbl"><span data-fr="Modèle Kokoro" data-en="Kokoro model">Modèle Kokoro</span></div><select id="kdtype"><option value="q4f16" data-fr="q4f16 — rapide (155 Mo)" data-en="q4f16 — fast (155 MB)">q4f16 — rapide (155 Mo)</option><option value="q8" data-fr="q8 — deux fois plus lent, moins de mémoire (97 Mo de plus)" data-en="q8 — half the speed, less memory (97 MB more)">q8 — deux fois plus lent, moins de mémoire (97 Mo de plus)</option></select><div class="hint" id="kdtypeHint" style="display:none;padding:0 0 6px"></div></div>
   <div class="box" id="uvoiceBox"><div class="lbl"><span data-fr="Votre voix" data-en="Your voice">Votre voix</span></div><select id="uvoice"></select></div>
   <div class="box" id="readBox"><div class="lbl"><span data-fr="Longueur lue" data-en="Spoken length">Longueur lue</span></div><select id="readLen"><option value="full" data-fr="Messages entiers" data-en="Full messages">Messages entiers</option><option value="long" data-fr="Longue (700 caractères)" data-en="Long (700 characters)">Longue (700 caractères)</option><option value="short" data-fr="Courte (une ou deux phrases)" data-en="Short (a sentence or two)">Courte (une ou deux phrases)</option></select></div>
   <div class="box" id="vspeedBox"><div class="lbl"><span data-fr="Vitesse des voix" data-en="Voice speed">Vitesse des voix</span><span id="vspeedVal"></span></div><input id="vspeed" type="range" min="0.7" max="1.6" step="0.05" style="width:100%" aria-label="Voice speed"></div>
@@ -681,7 +681,7 @@ const TTS = {
     this.server = false; this.engine = 'system'; this.pool = { fr: [], en: [] }; this.list = { fr: [], en: [] };
     try {
       if (prefs.vstyle === 'kokoro' && !this.dead) {
-        const d = await (await fetch('/api/voices?engine=kokoro&dtype=' + encodeURIComponent(prefs.kokoroDtype || 'q8'))).json();
+        const d = await (await fetch('/api/voices?engine=kokoro&dtype=' + encodeURIComponent(prefs.kokoroDtype || 'q4f16'))).json();
         if (d.available) { this.server = true; this.engine = 'kokoro'; for (const l of ['fr', 'en']) { this.list[l] = d.voices.filter((v) => v.locale.startsWith(l + '_')).slice(0, 8); this.pool[l] = this.list[l].map((v) => v.name); } }
       }
       if (!this.server) {
@@ -1465,7 +1465,7 @@ async function run(i) {
     if (ev.kind === 'user' && S.voiceTok) S.voiceTok.stop = true;   // a new human message ends the previous turn: cut whatever is still being read, the human is done with it
     await voiceDone(); if (token !== S.token) return;   // the previous line finishes before this one starts; tool events never waited for it
     if (FR() && !S.hurry) { prefetchTr(i); await Promise.race([ensureTr(group.map((g) => baseText(g))), sleep(S.live ? 7000 : 14000)]); if (token !== S.token) return; }
-    prefetchQuips(i); warmTTS(i);
+    prefetchQuips(i);
     const h = S.voiceTok = { tok: token, stop: false };   // this group's handle: dies with the playback token, or when a human message preempts it
     if (group.length >= 3) MEME.fire('combo', { ids: group.map((g) => g.agent) });
     const plays = group.map((g, k) => {
@@ -1476,6 +1476,7 @@ async function run(i) {
       if (g.kind === 'report') { AUD.ding(); MEME.fire('report', { from: g.agent, to: g.to }); setTimeout(() => { fly(g.agent, g.to, '✅'); popTile(g.agent); }, 30); }
       return speakLine(line, S.agents[g.agent], true, h, FR() && trMem.has(baseText(g))).then(() => stopTalk(g.agent));
     });
+    warmTTS(i);   // after this group's own request: the next lines are made behind the one being listened to, not in front of it
     S.idx = j - 1; paintStatus();
     S.voice = Promise.all(plays).then(async () => { if (token !== S.token || h.stop) return; for (const g of group) { await react(g, h); if (token !== S.token || h.stop) return; } }).catch(() => {});   // plays on while the loop shows what happens next
     i = j;

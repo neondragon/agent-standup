@@ -8,11 +8,11 @@ const { spawn } = require('child_process');
 const WIN = process.platform === 'win32';
 const DIR = process.env.AGENT_STANDUP_KOKORO_DIR || (WIN ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'agent-standup', 'kokoro') : path.join(os.homedir(), '.cache', 'agent-standup', 'kokoro'));
 const DTYPES = /^(q8|q4|fp32|fp16|q4f16)$/;
-let DTYPE = DTYPES.test(process.env.AGENT_STANDUP_KOKORO_DTYPE || '') ? process.env.AGENT_STANDUP_KOKORO_DTYPE : 'q8';   // q8: 97 MB, best quality; q4: 304 MB, about twice as fast
+let DTYPE = DTYPES.test(process.env.AGENT_STANDUP_KOKORO_DTYPE || '') ? process.env.AGENT_STANDUP_KOKORO_DTYPE : 'q4f16';   // q4f16: 155 MB, fast (same graph and sound as q4 at half the size); q8: 97 MB, half the speed, less RAM
 const PKG = 'kokoro-js@1.2.1';
 const WORKER = process.env.AGENT_STANDUP_KOKORO_WORKER || path.join(__dirname, 'kokoro-worker.js');
 const LOG = path.join(DIR, 'install.log');
-const SIZE_MB = 520;   // ≈ 424 MB of packages + 97 MB model (q8)
+const SIZE_MB = 580;   // ≈ 424 MB of packages + 155 MB model (q4f16)
 const MAX_RESTARTS = 3;
 
 // Voices in the order agents get them (the lead takes the first), so successive agents sound distinct. Grades from the Kokoro model card.
@@ -56,8 +56,10 @@ function install() {
   return status();
 }
 
-// ---- worker: one child process, started on first use (or by warm()), restarted on crash up to MAX_RESTARTS times
-let worker = null, restarts = 0, seq = 0;
+// ---- worker: one child process, started on first use (or by warm()), restarted on crash up to MAX_RESTARTS times.
+// It makes one line at a time, so requests wait here in a queue: a streamed line (someone is listening to it right now)
+// goes before the lines the page prepares ahead of time, which would otherwise hold the first words back for 20 s or more.
+let worker = null, restarts = 0, seq = 0, queue = [], busy = false;
 function startWorker() {
   if (worker) return worker;
   if (restarts >= MAX_RESTARTS) throw new Error('kokoro worker gave up');
@@ -77,28 +79,46 @@ function startWorker() {
   });
   p.stderr.on('data', (d) => { w.err = (w.err + d).slice(-600); });
   p.stdin.on('error', () => {});   // a write after the worker died is reported through 'close', not as an unhandled stream error
-  const gone = (why) => { if (worker !== w) return; worker = null; restarts++; lastError = why; for (const r of w.pending.values()) r.reject(new Error(why)); w.pending.clear(); };
+  const gone = (why) => { if (worker !== w) return; worker = null; restarts++; lastError = why; fail(w, why); };
   p.on('error', (e) => gone('kokoro worker: ' + e.message));
   p.on('close', (code) => gone('kokoro worker exited (' + code + ') ' + (w.err.trim().split('\n').pop() || '')));
   return w;
 }
+const fail = (w, why) => { const jobs = [...w.pending.values()]; w.pending.clear(); busy = false; for (const r of jobs) r.reject(new Error(why)); };   // the worker's job is lost: tell the caller, then move on to the next in the queue
 function warm() { if (installed() && !worker && restarts < MAX_RESTARTS) try { startWorker(); } catch {} }
 function setDtype(d) {   // the page's choice of model; a change restarts the worker, which fetches the other model on first use
   if (!DTYPES.test(d || '') || d === DTYPE) return false;
-  DTYPE = d; restarts = 0; lastError = ''; if (worker) { try { worker.p.kill(); } catch {} worker = null; } warm(); return true;
+  DTYPE = d; restarts = 0; lastError = '';
+  if (worker) { const w = worker; worker = null; try { w.p.kill(); } catch {} queue.unshift(...[...w.pending.values()].map((r) => r.job)); w.pending.clear(); busy = false; }   // the line in progress is made again by the new model
+  warm(); pump(); return true;
+}
+function pump() {   // hand the worker its next line once it is free
+  if (busy || !queue.length) return;
+  const job = queue.shift(); let w; try { w = startWorker(); } catch (e) { job.reject(e); return pump(); }
+  const id = ++seq; busy = true;
+  const next = (fn) => (v) => { busy = false; fn(v); pump(); };
+  w.pending.set(id, { job, onChunk: job.onChunk, resolve: next(job.resolve), reject: next(job.reject) });
+  w.p.stdin.write(JSON.stringify({ id, text: job.text, voice: job.voice, speed: job.speed, out: job.out, stream: job.stream }) + '\n');
 }
 function synth(text, voice, speed, out, onChunk) {   // with onChunk(pcm16Buffer, seconds): streamed piece by piece, the whole line still written to `out`
   if (!installed()) return Promise.reject(new Error('kokoro not installed'));
   if (!hasVoice(voice)) return Promise.reject(new Error('unknown voice'));
-  let w; try { w = startWorker(); } catch (e) { return Promise.reject(e); }
-  const id = ++seq;
-  return new Promise((resolve, reject) => { w.pending.set(id, { resolve, reject, onChunk }); w.p.stdin.write(JSON.stringify({ id, text, voice, speed, out, stream: !!onChunk }) + '\n'); });
+  return new Promise((resolve, reject) => {
+    const job = { text, voice, speed, out, stream: !!onChunk, onChunk, resolve, reject };
+    if (job.stream) { const k = queue.findIndex((j) => !j.stream); queue.splice(k < 0 ? queue.length : k, 0, job); } else queue.push(job);   // listened to now: ahead of the lines made ahead of time
+    pump();
+  });
 }
 function status() {
   let log = ''; try { log = fs.readFileSync(LOG, 'utf8').slice(-400); } catch {}
   return { dir: DIR, dtype: DTYPE, sizeMb: SIZE_MB, installed: installed(), installing: !!job, ready: !!(worker && worker.ready), gaveUp: restarts >= MAX_RESTARTS, error: lastError || null, npm: findNpm(), log };
 }
-function shutdown() { if (worker) { try { worker.p.kill(); } catch {} worker = null; } if (job) { try { job.kill(); } catch {} job = null; } }
+function shutdown() {
+  const waiting = queue.splice(0); for (const j of waiting) j.reject(new Error('kokoro shut down'));   // the queue first: failing the line in progress pumps the queue, which would start a worker again
+  if (worker) { const w = worker; worker = null; try { w.p.kill(); } catch {} fail(w, 'kokoro shut down'); }
+  busy = false;
+  if (job) { try { job.kill(); } catch {} job = null; }
+}
 const _reset = () => { restarts = 0; lastError = ''; };
 
 module.exports = { DIR, dtype: () => DTYPE, setDtype, voices, hasVoice, speedFor, status, install, warm, synth, shutdown, findNpm, _reset };

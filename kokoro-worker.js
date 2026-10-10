@@ -39,7 +39,7 @@ function pieces(text) {
 module.exports = { wav, pcm16, wavHeader, pieces };
 
 async function main() {
-  const dir = process.env.AGENT_STANDUP_KOKORO_DIR, dtype = process.env.AGENT_STANDUP_KOKORO_DTYPE || 'q8';
+  const dir = process.env.AGENT_STANDUP_KOKORO_DIR, dtype = process.env.AGENT_STANDUP_KOKORO_DTYPE || 'q4f16';
   const req = createRequire(path.join(dir, 'node_modules', 'x.js'));   // resolve from the install dir, not from the extension
   const tf = req('@huggingface/transformers'); tf.env.cacheDir = path.join(dir, 'models');
   const { KokoroTTS, TextSplitterStream } = req('kokoro-js');
