@@ -236,6 +236,7 @@
   <div class="box" id="kokoroBox" style="display:none"><button id="kokoroInstall"></button><div class="hint" id="kokoroHint" style="padding:2px 0 6px"></div></div>
   <div class="box" id="kokoroOpts" style="display:none"><div class="lbl"><span data-fr="Modèle Kokoro" data-en="Kokoro model">Modèle Kokoro</span></div><select id="kdtype"><option value="q8" data-fr="q8 — meilleure qualité (97 Mo)" data-en="q8 — best quality (97 MB)">q8 — meilleure qualité (97 Mo)</option><option value="q4" data-fr="q4 — plus rapide (304 Mo de plus)" data-en="q4 — faster (304 MB more)">q4 — plus rapide (304 Mo de plus)</option></select><div class="hint" id="kdtypeHint" style="display:none;padding:0 0 6px"></div></div>
   <div class="box" id="uvoiceBox"><div class="lbl"><span data-fr="Votre voix" data-en="Your voice">Votre voix</span></div><select id="uvoice"></select></div>
+  <div class="box" id="readBox"><div class="lbl"><span data-fr="Longueur lue" data-en="Spoken length">Longueur lue</span></div><select id="readLen"><option value="full" data-fr="Messages entiers" data-en="Full messages">Messages entiers</option><option value="long" data-fr="Longue (700 caractères)" data-en="Long (700 characters)">Longue (700 caractères)</option><option value="short" data-fr="Courte (une ou deux phrases)" data-en="Short (a sentence or two)">Courte (une ou deux phrases)</option></select></div>
   <div class="box" id="vspeedBox"><div class="lbl"><span data-fr="Vitesse des voix" data-en="Voice speed">Vitesse des voix</span><span id="vspeedVal"></span></div><input id="vspeed" type="range" min="0.7" max="1.6" step="0.05" style="width:100%" aria-label="Voice speed"></div>
   <button class="mi" data-t="office"><span data-fr="Ambiance de bureau (clavier, café…)" data-en="Office ambience (keys, coffee…)">Ambiance de bureau (clavier, café…)</span><i class="sw"></i></button>
   <div class="box" id="officeBox" style="display:none"><input id="officeVol" type="range" min="0.1" max="1" step="0.05" style="width:100%" aria-label="Ambience volume"></div>
@@ -294,7 +295,7 @@ const CID = Math.random().toString(36).slice(2, 12);   // identifies this window
 const Q = new URLSearchParams(location.search);
 const EMBED = Q.get('embed') === '1' || window.parent !== window;
 
-let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, kokoroDtype: 'q8', userVoice: '', roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
+let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, kokoroDtype: 'q8', userVoice: '', readLen: 'full', roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem('cc.prefs') || '{}')); } catch {}
 if (prefs.vstyle === 'babble') prefs.vstyle = 'animal', prefs.vstyleChosen = true;
 if (!prefs.vstyleChosen && (prefs.vstyle === 'animal' || prefs.vstyle === 'sims')) prefs.vstyle = 'cartoon';   // the gibberish styles are opt-in: understandable voices by default
@@ -444,7 +445,8 @@ const speakable = (t) => t.replace(/(?:[\w.-]+\/)+([\w.-]+)/g, (m, f) => f.repla
 
 // ---------- translation (local claude CLI) ----------
 const trMem = new Map(), trPending = new Map();
-const baseText = (ev, max) => short(ev.text, max || (S.live ? (ev.kind === 'order' ? 150 : 180) : (ev.kind === 'order' ? 200 : 230)));
+const READ_MAX = 2500;   // 'full': still cut at a sentence end past this, the server reads up to the same length
+const baseText = (ev, max) => short(ev.text, max || (prefs.readLen === 'full' ? READ_MAX : prefs.readLen === 'long' ? 700 : S.live ? (ev.kind === 'order' ? 150 : 180) : (ev.kind === 'order' ? 200 : 230)));
 function ensureTr(texts) {
   texts = [...new Set(texts)].filter((t) => t && !trMem.has(t));
   const waits = texts.filter((t) => trPending.has(t)).map((t) => trPending.get(t)), fresh = texts.filter((t) => !trPending.has(t));
@@ -688,6 +690,7 @@ function fillUserVoice() {   // ⚙ → Your voice: Auto, or any voice of the cu
   sel.value = list.some((v) => v.name === prefs.userVoice) ? prefs.userVoice : ''; sel.disabled = !list.length;
 }
 $('#uvoice').onchange = () => { prefs.userVoice = $('#uvoice').value; savePrefs(); };
+$('#readLen').value = ['full', 'long', 'short'].includes(prefs.readLen) ? prefs.readLen : 'full'; $('#readLen').onchange = () => { prefs.readLen = $('#readLen').value; savePrefs(); };
 $('#kokoroInstall').onclick = async () => { $('#kokoroInstall').disabled = true; try { await fetch('/api/kokoro/install', { method: 'POST' }); } catch {} kokoroUI(); };
 
 // ---- Cartoon voices: the same system voice, given a character by a small WebAudio chain (pitch, vibrato, robot, radio…), or syllable "babble" in the spirit of Animal Crossing.

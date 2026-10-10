@@ -439,7 +439,7 @@ function synthesize(voice, wpm, text, out, engine) {
     p.on('error', reject); p.on('close', (code) => (code === 0 && fs.existsSync(out) ? resolve() : reject(new Error('tts failed'))));
   });
 }
-const ttsNorm = (text, rate) => [String(text).slice(0, 700), Math.max(90, Math.min(360, Math.round(+rate || 180)))];
+const ttsNorm = (text, rate) => [String(text).slice(0, 2500), Math.max(90, Math.min(360, Math.round(+rate || 180)))];   // 2500: the page's 'full' reading; keeps the GET URL well under Node's 16 KB header limit
 const ttsKey = (engine, voice, rate, text) => crypto.createHash('sha1').update([engine, voice, rate, text].join('|')).digest('hex');
 function tts(text, voice, rate, engine = 'system') {
   if (engine === 'kokoro') { if (!kokoro.hasVoice(voice)) return Promise.reject(new Error('unknown voice')); }
