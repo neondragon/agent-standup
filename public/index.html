@@ -182,7 +182,11 @@
   .drift { animation:drift 24s ease-in-out infinite alternate } @keyframes drift { to { transform:translateX(9px) } }
   .steam { animation:steam 2.6s ease-in-out infinite } @keyframes steam { 50% { transform:translateY(-1.4px); opacity:.25 } }
   .tile.done .sparks path { animation:tw 1.6s ease-in-out infinite }
-  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important } .confetti, .fly { display:none !important } }
+  @media (prefers-reduced-motion:reduce) {
+    body:not(.meme) *, body:not(.meme) *::before, body:not(.meme) *::after { animation:none !important; transition:none !important }
+    body.meme .tile:not(.mm-zoom):not(.mm-fry), body.meme .tile:not(.mm-zoom):not(.mm-fry) * { animation:none !important }   /* meme mode is an explicit ask for motion (meme.js still drops the full-screen flashes and wipes): only the characters stay still */
+    .confetti, .fly { display:none !important }
+  }
   .tile:focus-visible, .rr:focus-visible, .bcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
   .fly { position:fixed; left:0; top:0; font-size:28px; z-index:8; pointer-events:none; filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)) }
 
@@ -735,7 +739,8 @@ const TTS = {
     } catch {}
     fillUserVoice();
   },
-  voiceFor(p, fr = FR()) { const pool = this.pool[fr ? 'fr' : 'en']; if (!pool.length) return null; if (p.id === 'user' && pool.includes(prefs.userVoice)) return prefs.userVoice; return p.id === 'main' ? pool[0] : pool[(p.vi >>> 2) % pool.length]; },   // the human's voice is the user's pick when it is in the current list
+  voiceFor(p, fr = FR()) { const pool = this.pool[fr ? 'fr' : 'en']; if (!pool.length) return null; if (p.id === 'user') { if (pool.includes(prefs.userVoice)) return prefs.userVoice; if (this.engine === 'kokoro' && pool.includes('am_puck')) return 'am_puck'; }   // the human's voice: the user's pick when it is in the current list, else Puck with Kokoro (Auto otherwise landed on a voice much like the lead's)
+    return p.id === 'main' ? pool[0] : pool[(p.vi >>> 2) % pool.length]; },
   rate() { return Math.round(Math.max(120, Math.min(360, 178 * vspeed() * (S.live ? 1.12 : +$('#speed').value))) / 10) * 10; },   // wpm; every engine derives its own speed from it
   key(text, voice, rate) { return this.engine + '|' + voice + '|' + rate + '|' + text; },
   buf(text, voice, rate) {
