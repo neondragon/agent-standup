@@ -1,7 +1,7 @@
 // test/wav.test.js
 const test = require('node:test');
 const assert = require('node:assert');
-const { wav } = require('../kokoro-worker.js');
+const { wav, pieces } = require('../kokoro-worker.js');
 
 test('wav writes a 16-bit mono PCM header and clamps samples', () => {
   const buf = wav(new Float32Array([0, 0.5, 1, -1, 2, -2]), 24000);
@@ -19,4 +19,13 @@ test('wav writes a 16-bit mono PCM header and clamps samples', () => {
   assert.equal(buf.readInt16LE(50), -32768);
   assert.equal(buf.readInt16LE(52), 32767);     // clamped
   assert.equal(buf.readInt16LE(54), -32768);    // clamped
+});
+
+test('pieces: sentences, long sentences cut at clauses, nothing lost', () => {
+  assert.deepEqual(pieces('Done. The tests pass now! Next?'), ['Done.', 'The tests pass now!', 'Next?']);
+  assert.deepEqual(pieces('no punctuation at all'), ['no punctuation at all']);
+  const long = 'First clause goes here and keeps going for a while, second clause also keeps going for quite a while longer, third clause goes on and on and on and on, fourth clause finishes the sentence at last.';
+  const p = pieces(long);
+  assert.ok(p.length >= 2 && p.every((x) => x.length <= 110), p);
+  assert.equal(p.join(' '), long);
 });

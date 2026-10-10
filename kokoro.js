@@ -68,7 +68,9 @@ function startWorker() {
     while ((i = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, i); buf = buf.slice(i + 1); let m; try { m = JSON.parse(line); } catch { continue; }   // anything that is not ours (library chatter) is ignored
       if (m.ready) { w.ready = true; lastError = ''; continue; }
-      const r = w.pending.get(m.id); if (!r) continue; w.pending.delete(m.id);
+      const r = w.pending.get(m.id); if (!r) continue;
+      if (m.chunk !== undefined) { if (r.onChunk) r.onChunk(Buffer.from(m.chunk, 'base64'), m.seconds); continue; }
+      w.pending.delete(m.id);
       m.ok ? r.resolve(m) : r.reject(new Error(m.error || 'tts failed'));
     }
   });
@@ -80,12 +82,12 @@ function startWorker() {
   return w;
 }
 function warm() { if (installed() && !worker && restarts < MAX_RESTARTS) try { startWorker(); } catch {} }
-function synth(text, voice, speed, out) {
+function synth(text, voice, speed, out, onChunk) {   // with onChunk(pcm16Buffer, seconds): streamed piece by piece, the whole line still written to `out`
   if (!installed()) return Promise.reject(new Error('kokoro not installed'));
   if (!hasVoice(voice)) return Promise.reject(new Error('unknown voice'));
   let w; try { w = startWorker(); } catch (e) { return Promise.reject(e); }
   const id = ++seq;
-  return new Promise((resolve, reject) => { w.pending.set(id, { resolve, reject }); w.p.stdin.write(JSON.stringify({ id, text, voice, speed, out }) + '\n'); });
+  return new Promise((resolve, reject) => { w.pending.set(id, { resolve, reject, onChunk }); w.p.stdin.write(JSON.stringify({ id, text, voice, speed, out, stream: !!onChunk }) + '\n'); });
 }
 function status() {
   let log = ''; try { log = fs.readFileSync(LOG, 'utf8').slice(-400); } catch {}

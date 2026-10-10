@@ -39,3 +39,17 @@ test('kokoro tts returns a wav once installed', async () => {
   assert.equal(bad.status, 400);
   kokoro.shutdown();
 });
+
+const frames = (b) => { const out = []; for (let i = 0; i + 4 <= b.length;) { const n = b.readUInt32LE(i); out.push(b.subarray(i + 4, i + 4 + n)); i += 4 + n; } return out; };
+test('streamed kokoro tts sends one frame per piece, then serves the cached line whole', async () => {
+  const q = '/api/tts?engine=kokoro&stream=1&voice=bf_emma&rate=180&text=Streamed%20line%20' + Date.now();   // unique: the cache in os.tmpdir() outlives test runs
+  const r = await get(q);
+  assert.equal(r.status, 200); assert.equal(r.headers.get('content-type'), 'application/octet-stream'); assert.equal(r.headers.get('x-sample-rate'), '24000');
+  const f = frames(Buffer.from(await r.arrayBuffer()));
+  assert.deepEqual(f.map((x) => x.length), [480, 480]);
+  const again = frames(Buffer.from(await (await get(q)).arrayBuffer()));
+  assert.equal(again.length, 1); assert.equal(again[0].length, 4800);   // the stub's 2400-sample wav, header stripped
+  const bad = await get('/api/tts?engine=kokoro&stream=1&voice=Samantha&rate=180&text=hello');
+  assert.equal(bad.status, 400);
+  kokoro.shutdown();
+});

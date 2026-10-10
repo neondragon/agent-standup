@@ -127,6 +127,33 @@ characters; the lead gets the first.
   and the voice styles sit downstream of the buffer, warm-ahead and the
   hurry rule work as before.
 
+## Streaming (added 2026-10-10)
+
+Waiting for a whole line meant a 6 s line sat ~3.5 s before its first word.
+Now a Kokoro line that is not yet cached is streamed:
+
+- The worker takes `stream: true`, drives kokoro-js's `TextSplitterStream`
+  itself (its string input never closes the splitter, which hangs on the last
+  sentence), pushing pieces from `pieces()`: sentences, and sentences over
+  110 characters cut at clause boundaries into ~90-character pieces so chunk
+  lengths stay even. Each piece is sent as `{ id, chunk: <base64 pcm16>,
+  seconds }`, then the usual `{ id, ok, seconds }` after the full WAV is
+  written. Output goes through `fs.writeSync(1, …)`: on macOS a pipe write from
+  `process.stdout` is queued until the loop is idle, which held every chunk
+  back until the line was done.
+- `GET /api/tts?engine=kokoro&stream=1&…` answers `application/octet-stream`
+  with `x-sample-rate: 24000` and frames `[u32 LE length][pcm16]`. A line
+  already cached or in progress is sent as one frame. The line still lands in
+  the cache under the same key as the non-streamed route.
+- The page's `speakStream()` builds one analyser/FX chain fed by a shared gain
+  node, converts each frame to an `AudioBuffer` and schedules it back to back;
+  the cartoon pitch (`fx.rate`) goes on each chunk's source. `speakServer()`
+  uses it when the engine is Kokoro and the line is not in the page cache;
+  `warmTTS()` now warms from the next line, so the current line streams.
+
+Measured on the M1 (warm worker, low power off): first chunk (~2 s of audio)
+at 1.2–1.4 s; a whole 9 s line took 5.4 s before.
+
 ## Error handling
 
 | Case | Behaviour |

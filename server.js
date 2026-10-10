@@ -439,17 +439,35 @@ function synthesize(voice, wpm, text, out, engine) {
     p.on('error', reject); p.on('close', (code) => (code === 0 && fs.existsSync(out) ? resolve() : reject(new Error('tts failed'))));
   });
 }
+const ttsNorm = (text, rate) => [String(text).slice(0, 700), Math.max(90, Math.min(360, Math.round(+rate || 180)))];
+const ttsKey = (engine, voice, rate, text) => crypto.createHash('sha1').update([engine, voice, rate, text].join('|')).digest('hex');
 function tts(text, voice, rate, engine = 'system') {
   if (engine === 'kokoro') { if (!kokoro.hasVoice(voice)) return Promise.reject(new Error('unknown voice')); }
   else { const vs = listVoices(); if (!vs.available || !vs.voices.some((v) => v.name === voice)) return Promise.reject(new Error('unknown voice')); }
-  text = String(text).slice(0, 700); rate = Math.max(90, Math.min(360, Math.round(+rate || 180)));
-  const key = crypto.createHash('sha1').update([engine, voice, rate, text].join('|')).digest('hex'), file = path.join(ttsDir, key + '.wav');
+  [text, rate] = ttsNorm(text, rate);
+  const key = ttsKey(engine, voice, rate, text), file = path.join(ttsDir, key + '.wav');
   if (fs.existsSync(file)) return Promise.resolve(file);
   if (ttsJobs.has(key)) return ttsJobs.get(key);
   fs.mkdirSync(ttsDir, { recursive: true });
   const tmp = file + '.part.wav';
   const job = synthesize(voice, rate, text, tmp, engine).then(() => { fs.renameSync(tmp, file); return file; }).finally(() => ttsJobs.delete(key));
   ttsJobs.set(key, job); return job;
+}
+// Streamed Kokoro: 16-bit PCM frames ([u32 length][samples]) as each sentence is synthesised, so the first words play
+// before the rest exists. The whole line still lands in the cache, and a line already cached or in progress is sent whole.
+async function ttsStream(text, voice, rate, res) {
+  if (!kokoro.hasVoice(voice)) throw new Error('unknown voice');
+  [text, rate] = ttsNorm(text, rate);
+  const key = ttsKey('kokoro', voice, rate, text), file = path.join(ttsDir, key + '.wav');
+  const head = () => res.writeHead(200, { 'content-type': 'application/octet-stream', 'x-sample-rate': '24000', 'cache-control': 'no-store' });
+  const frame = (pcm) => { if (res.destroyed) return; const h = Buffer.alloc(4); h.writeUInt32LE(pcm.length, 0); res.write(Buffer.concat([h, pcm])); };
+  let job = ttsJobs.get(key);
+  if (!job && !fs.existsSync(file)) {
+    fs.mkdirSync(ttsDir, { recursive: true }); const tmp = file + '.part.wav'; head();
+    job = kokoro.synth(text, voice, kokoro.speedFor(rate), tmp, frame).then(() => { fs.renameSync(tmp, file); return file; }).finally(() => ttsJobs.delete(key));
+    ttsJobs.set(key, job); await job; return res.end();
+  }
+  const f = await (job || Promise.resolve(file)); if (!res.headersSent) head(); frame(fs.readFileSync(f).subarray(44)); res.end();
 }
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
@@ -487,6 +505,10 @@ function start(port = PORT) {
     if (url.pathname === '/api/warm') { trWorkers.forEach((w) => { if (!w.p) w.start(); }); return json({ ok: true }); }
     if (url.pathname === '/api/voices') return json(voicesFor(url.searchParams.get('engine') || 'system'));
     if (url.pathname === '/api/tts') {
+      if (url.searchParams.get('stream') && url.searchParams.get('engine') === 'kokoro') {
+        return ttsStream(url.searchParams.get('text') || '', url.searchParams.get('voice'), url.searchParams.get('rate'), res)
+          .catch((e) => { if (res.headersSent) res.destroy(); else json({ error: String(e.message) }, 400); });
+      }
       return tts(url.searchParams.get('text') || '', url.searchParams.get('voice'), url.searchParams.get('rate'), url.searchParams.get('engine') === 'kokoro' ? 'kokoro' : 'system')
         .then((f) => { res.writeHead(200, { 'content-type': 'audio/wav', 'cache-control': 'max-age=86400' }); fs.createReadStream(f).pipe(res); })
         .catch((e) => json({ error: String(e.message) }, 400));

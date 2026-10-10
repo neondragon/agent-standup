@@ -46,5 +46,8 @@ test('synth writes a wav through the worker, restarts after a crash, gives up af
   await assert.rejects(kokoro.synth('hello', 'af_heart', 1, out), /gave up/);
   kokoro._reset();
   assert.equal((await kokoro.synth('hello', 'af_heart', 1, out)).ok, true);
+  const chunks = [];
+  assert.equal((await kokoro.synth('hello again', 'af_heart', 1, out, (pcm, s) => chunks.push([pcm.length, s]))).ok, true);
+  assert.deepEqual(chunks, [[480, 0.01], [480, 0.01]]);
   kokoro.shutdown();
 });
