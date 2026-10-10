@@ -649,11 +649,11 @@ async function kokoroUI() {
   if (!prefs.kokoro) { box.style.display = 'none'; return; }
   let st = null; try { st = await (await fetch('/api/kokoro')).json(); } catch {} if (!st) { box.style.display = 'none'; return; }
   if (st.installed && !st.installing) {
-    box.style.display = st.error ? '' : 'none'; btn.style.display = 'none'; hint.textContent = st.error ? L('Voix naturelles indisponibles : ', 'Natural voices unavailable: ') + st.error : '';
+    box.style.display = st.error ? '' : 'none'; btn.style.display = 'none'; hint.style.color = ''; hint.textContent = st.error ? L('Voix naturelles indisponibles : ', 'Natural voices unavailable: ') + st.error : '';
     if (TTS.engine !== 'kokoro' && !TTS.dead) TTS.init().then(updateHint);
     return;
   }
-  box.style.display = ''; btn.style.display = ''; btn.disabled = st.installing || !st.npm;
+  box.style.display = ''; btn.style.display = ''; btn.disabled = st.installing || !st.npm; hint.style.color = st.error || !st.npm ? '' : 'var(--dim)';   // amber only when something is wrong
   btn.textContent = st.installing ? L('Installation…', 'Installing…') : st.error ? L('Réessayer', 'Retry') : L(`Installer (une fois, ~${st.sizeMb} Mo)`, `Install (one-time, ~${st.sizeMb} MB)`);
   hint.textContent = !st.npm ? L('npm introuvable : installez Node.js pour les voix naturelles.', 'npm not found: install Node.js to use natural voices.')
     : st.installing ? (st.log.trim().split('\n').pop() || '…')
