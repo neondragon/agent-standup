@@ -72,3 +72,9 @@ test('settings persist on the server, served as a script the page loads first', 
   const bad = await fetch(base + '/api/prefs', { method: 'PUT', body: '[1]' }); assert.equal(bad.status, 400);
   assert.deepEqual(JSON.parse(fs.readFileSync(process.env.AGENT_STANDUP_PREFS, 'utf8')), { lang: 'en', voiceSpeed: 1.3 });
 });
+
+test('meme mode files are served with their types, the bundled clip included', async () => {
+  const js = await get('/meme.js'); assert.equal(js.status, 200); assert.equal(js.headers.get('content-type'), 'text/javascript');
+  const css = await get('/meme.css'); assert.equal(css.status, 200); assert.equal(css.headers.get('content-type'), 'text/css');
+  const mp3 = await get('/sfx/oh-my-god.mp3'); assert.equal(mp3.status, 200); assert.equal(mp3.headers.get('content-type'), 'audio/mpeg'); assert.equal((await mp3.arrayBuffer()).byteLength, 27002);
+});

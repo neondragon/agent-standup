@@ -488,7 +488,7 @@ async function ttsStream(text, voice, rate, res) {
   const f = await (job || Promise.resolve(file)); if (!res.headersSent) head(); frame(fs.readFileSync(f).subarray(44)); res.end();
 }
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
 let audioOwner = { id: null, seen: 0 };
 function start(port = PORT) {
   return http.createServer((req, res) => {

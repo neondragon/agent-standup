@@ -1,0 +1,60 @@
+/* Meme mode (public/meme.js). Everything hangs off body.meme or lives in #memeLayer, so this file is inert while the mode is off. */
+#memeLayer { position:absolute; inset:0; z-index:12; pointer-events:none; overflow:hidden; display:none }
+body.meme #memeLayer { display:block }
+.mm { position:absolute; font-family:Impact,"Arial Black",Anton,"Helvetica Neue",sans-serif; will-change:transform,opacity }
+
+/* Impact text slamming in, then drifting off */
+.mm.slam { transform:translate(-50%,-50%); text-transform:uppercase; font-weight:900; letter-spacing:.5px; line-height:1; white-space:nowrap; max-width:92%; overflow:hidden; text-overflow:ellipsis; -webkit-text-stroke:2px #000; paint-order:stroke fill; text-shadow:4px 4px 0 #000, -2px -2px 0 #000, 0 0 18px rgba(0,0,0,.6); animation:mmSlam 1.4s cubic-bezier(.2,1.6,.4,1) forwards }
+@keyframes mmSlam { 0% { transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(4); opacity:0; filter:blur(6px) } 18% { transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(1); opacity:1; filter:none } 80% { transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(1.08); opacity:1 } 100% { transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(1.6); opacity:0 } }
+
+/* top text / bottom text */
+.mm.tb { inset:0; display:flex; flex-direction:column; justify-content:space-between; align-items:center; padding:3% 4%; text-align:center; animation:mmFade 2.2s forwards }
+.mm.tb div { font-size:clamp(28px,6vw,72px); line-height:1; color:#fff; text-transform:uppercase; -webkit-text-stroke:2px #000; paint-order:stroke fill; text-shadow:3px 3px 0 #000; animation:mmPunch .5s cubic-bezier(.2,1.6,.4,1) backwards }
+.mm.tb .bot { animation-delay:.25s }
+@keyframes mmPunch { from { transform:scale(3); opacity:0 } }
+@keyframes mmFade { 0%, 80% { opacity:1 } 100% { opacity:0 } }
+
+/* MLG lens flare: a spinning rainbow disc, screen-blended */
+.mm.flare { transform:translate(-50%,-50%); border-radius:50%; mix-blend-mode:screen; opacity:.9; background:conic-gradient(from 0deg,#ff0040,#ff8a00,#ffe600,#3bff6e,#52d8ff,#8a5cff,#ff0040); -webkit-mask:radial-gradient(circle,#000 0,rgba(0,0,0,.6) 25%,transparent 70%); mask:radial-gradient(circle,#000 0,rgba(0,0,0,.6) 25%,transparent 70%); animation:mmFlare 1.6s ease-out forwards }
+@keyframes mmFlare { 0% { transform:translate(-50%,-50%) rotate(0) scale(.2); opacity:0 } 25% { opacity:.95 } 100% { transform:translate(-50%,-50%) rotate(540deg) scale(1.4); opacity:0 } }
+
+/* hitmarker */
+.mm.hit { transform:translate(-50%,-50%); color:#fff; font-size:42px; line-height:1; text-shadow:0 0 4px #000, 2px 2px 0 #000; animation:mmHit .7s ease-out forwards }
+@keyframes mmHit { 0% { transform:translate(-50%,-50%) scale(2.2); opacity:1 } 40% { transform:translate(-50%,-50%) scale(1) } 100% { transform:translate(-50%,-50%) scale(.9); opacity:0 } }
+
+/* emoji rain, colour flash, star wipe */
+.mm.rain { top:-50px; line-height:1; filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)); animation:mmRain 2.4s ease-in forwards }
+@keyframes mmRain { to { transform:translateY(120vh) rotate(720deg) } }
+.mm.flash { inset:0; animation:mmFlash .11s ease-out forwards }
+@keyframes mmFlash { from { opacity:1 } to { opacity:0 } }
+.mm.wipe { inset:-20%; background:#fff }
+.mm.wipe.star { clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); background:conic-gradient(#ff0040,#ffe600,#3bff6e,#52d8ff,#ff5cf0,#ff0040); animation:mmStar 1.3s ease-in-out forwards }
+@keyframes mmStar { 0% { transform:scale(0) rotate(0) } 45% { transform:scale(3) rotate(180deg) } 55% { transform:scale(3) rotate(200deg) } 100% { transform:scale(0) rotate(360deg) } }
+
+/* deal with it, Illuminati, to be continued */
+.mm.shades { transform:translate(-50%,0); line-height:1; filter:drop-shadow(0 4px 6px rgba(0,0,0,.6)); animation:mmShades .6s cubic-bezier(.3,1.5,.5,1) forwards }
+@keyframes mmShades { from { transform:translate(-50%,-120px); opacity:0 } to { transform:translate(-50%,var(--fall,40px)); opacity:1 } }
+.mm.tri { left:50%; top:45%; width:220px; height:190px; margin:-95px 0 0 -110px; animation:mmTri 2.6s ease-in-out forwards }
+.mm.tri i { display:block; width:0; height:0; border-left:110px solid transparent; border-right:110px solid transparent; border-bottom:190px solid #3bff6e; filter:drop-shadow(0 0 24px #3bff6e) }
+.mm.tri span { position:absolute; left:50%; top:110px; transform:translate(-50%,-50%); font-size:60px; line-height:1 }
+@keyframes mmTri { 0% { transform:scale(0) rotate(-180deg); opacity:0 } 30% { transform:scale(1) rotate(0); opacity:1 } 85% { transform:scale(1.1) rotate(20deg); opacity:1 } 100% { transform:scale(3) rotate(40deg); opacity:0 } }
+#center.mm-freeze #stage, #center.mm-freeze #present, #center.mm-freeze #roster { filter:sepia(1) contrast(1.2) saturate(.6) }
+.mm.tbc { left:4%; bottom:9%; font-size:clamp(26px,4vw,48px); line-height:1; font-style:italic; color:#fff; -webkit-text-stroke:1px #000; paint-order:stroke fill; text-shadow:3px 3px 0 #000; animation:mmTbc .5s ease-out }
+@keyframes mmTbc { from { transform:translateX(-120%) } }
+
+/* the tiles: punch-in zoom with chromatic aberration, deep-fried pulses */
+body.meme .tile.mm-zoom { animation:mmZoom .5s cubic-bezier(.2,1.5,.4,1); z-index:3 }
+@keyframes mmZoom { 0% { transform:scale(1) } 30% { transform:scale(1.18) rotate(-1.5deg); filter:drop-shadow(-4px 0 0 rgba(255,0,0,.7)) drop-shadow(4px 0 0 rgba(0,180,255,.7)) } 100% { transform:none } }
+body.meme .tile.mm-fry { animation:mmFry .4s steps(2) infinite }
+@keyframes mmFry { 0%, 100% { filter:contrast(1.7) saturate(2.6) brightness(1.1) } 50% { filter:contrast(2.2) saturate(4) brightness(1.2) hue-rotate(15deg) } }
+
+/* the whole call in costume: Impact subtitles, a spinning logo, a rainbow glow round the stage */
+body.meme .bubble, body.meme #pcap { font-family:Impact,"Arial Black",Anton,sans-serif; text-transform:uppercase; letter-spacing:.5px; -webkit-text-stroke:1px #000; paint-order:stroke fill; text-shadow:2px 2px 0 #000; font-size:15px }
+body.meme .tile.focus .bubble { font-size:20px }
+body.meme .brand .logo { animation:mmSpin 2s linear infinite }
+@keyframes mmSpin { to { transform:rotate(360deg) } }
+body.meme #center::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:11; animation:mmGlow 4s linear infinite }
+@keyframes mmGlow { 0% { box-shadow:inset 0 0 50px rgba(255,0,64,.45) } 25% { box-shadow:inset 0 0 50px rgba(255,230,0,.45) } 50% { box-shadow:inset 0 0 50px rgba(59,255,110,.45) } 75% { box-shadow:inset 0 0 50px rgba(82,216,255,.45) } 100% { box-shadow:inset 0 0 50px rgba(255,0,64,.45) } }
+
+/* The switch is an explicit ask for motion, so reduced motion only removes the full-screen flashes and wipes (strobing). */
+@media (prefers-reduced-motion:reduce) { .mm.flash, .mm.wipe { display:none } }
