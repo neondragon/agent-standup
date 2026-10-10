@@ -231,7 +231,7 @@
   <div class="hint" id="trHint" style="display:none"></div>
   <h4 data-fr="Son" data-en="Sound">Son</h4>
   <button class="mi" data-t="voice"><span data-fr="Voix des agents" data-en="Agent voices">Voix des agents</span><i class="sw"></i></button>
-  <button class="mi" data-t="kokoro"><span data-fr="Voix naturelles (Kokoro)" data-en="Natural voices (Kokoro)">Voix naturelles (Kokoro)</span><i class="sw"></i></button>
+  <div class="box" id="vstyleBox"><select id="vstyle"></select></div>
   <div class="box" id="kokoroBox" style="display:none"><button id="kokoroInstall"></button><div class="hint" id="kokoroHint" style="padding:2px 0 6px"></div></div>
   <div class="box" id="vspeedBox"><div class="lbl"><span data-fr="Vitesse des voix" data-en="Voice speed">Vitesse des voix</span><span id="vspeedVal"></span></div><input id="vspeed" type="range" min="0.7" max="1.6" step="0.05" style="width:100%" aria-label="Voice speed"></div>
   <button class="mi" data-t="office"><span data-fr="Ambiance de bureau (clavier, café…)" data-en="Office ambience (keys, coffee…)">Ambiance de bureau (clavier, café…)</span><i class="sw"></i></button>
@@ -239,7 +239,6 @@
   <button class="mi" data-t="notify"><span data-fr="Me prévenir quand les agents ont fini" data-en="Notify me when agents finish">Me prévenir quand les agents ont fini</span><i class="sw"></i></button>
   <button class="mi" data-t="music"><span data-fr="Musique d’ambiance (radio FIP)" data-en="Office music (FIP radio)">Musique d’ambiance (radio FIP)</span><i class="sw"></i></button>
   <div class="box" id="musicBox" style="display:none"><select id="station"></select><input id="musicVol" type="range" min="0" max="1" step="0.05" style="width:100%" aria-label="Music volume"></div>
-  <div class="box" id="vstyleBox"><select id="vstyle"></select></div>
   <button class="mi" data-t="roster"><span data-fr="Liste des agents (à gauche)" data-en="Agents list (left)">Liste des agents (à gauche)</span><i class="sw"></i></button>
   <button class="mi" data-t="reactions"><span data-fr="Barre de réactions (👍 👏 ☕)" data-en="Reactions bar (👍 👏 ☕)">Barre de réactions (👍 👏 ☕)</span><i class="sw"></i></button>
   <button class="mi" data-t="banter"><span data-fr="Petites répliques et animations" data-en="Little lines & animations">Petites répliques et animations</span><i class="sw"></i></button>
@@ -290,10 +289,11 @@ const CID = Math.random().toString(36).slice(2, 12);   // identifies this window
 const Q = new URLSearchParams(location.search);
 const EMBED = Q.get('embed') === '1' || window.parent !== window;
 
-let prefs = { lang: 'en', voice: true, kokoro: true, voiceSpeed: 1.15, roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'cartoon', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
+let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem('cc.prefs') || '{}')); } catch {}
 if (prefs.vstyle === 'babble') prefs.vstyle = 'animal', prefs.vstyleChosen = true;
 if (!prefs.vstyleChosen && (prefs.vstyle === 'animal' || prefs.vstyle === 'sims')) prefs.vstyle = 'cartoon';   // the gibberish styles are opt-in: understandable voices by default
+if (!prefs.vstyleChosen && prefs.kokoro !== false) prefs.vstyle = 'kokoro'; delete prefs.kokoro;   // the Kokoro switch of earlier builds is now the 'kokoro' style
 const savePrefs = () => { try { localStorage.setItem('cc.prefs', JSON.stringify(prefs)); } catch {} };
 const FR = () => prefs.lang === 'fr';
 const L = (fr, en) => (FR() ? fr : en);
@@ -618,7 +618,7 @@ const TTS = {
   server: false, platform: '', engine: 'system', dead: false, pool: { fr: [], en: [] }, cache: new Map(),
   async init() {   // Kokoro when the user wants it and the server has it (its order is the character order), else the ranked system voices
     this.server = false; this.engine = 'system'; this.pool = { fr: [], en: [] };
-    if (prefs.kokoro && !this.dead) {
+    if (prefs.vstyle === 'kokoro' && !this.dead) {
       try { const d = await (await fetch('/api/voices?engine=kokoro')).json(); if (d.available) { this.server = true; this.engine = 'kokoro'; for (const l of ['fr', 'en']) this.pool[l] = d.voices.filter((v) => v.locale.startsWith(l + '_')).map((v) => v.name).slice(0, 8); return; } } catch {}
     }
     try { const d = await (await fetch('/api/voices')).json(); this.platform = d.platform || ''; if (!d.available) return; this.server = true;
@@ -650,7 +650,7 @@ function warmTTS(i) {   // synthesize the next few lines ahead of time
 let kokoroTimer = null;
 async function kokoroUI() {
   const box = $('#kokoroBox'), btn = $('#kokoroInstall'), hint = $('#kokoroHint'); clearTimeout(kokoroTimer);
-  if (!prefs.kokoro) { box.style.display = 'none'; return; }
+  if (prefs.vstyle !== 'kokoro') { box.style.display = 'none'; return; }
   let st = null; try { st = await (await fetch('/api/kokoro')).json(); } catch {} if (!st) { box.style.display = 'none'; return; }
   if (st.installed && !st.installing) {
     box.style.display = st.error ? '' : 'none'; btn.style.display = 'none'; hint.style.color = ''; hint.textContent = st.error ? L('Voix naturelles indisponibles : ', 'Natural voices unavailable: ') + st.error : '';
@@ -735,10 +735,9 @@ async function speakStream(text, voice, p, gain, token) {
   const c = AUD.ctx, ctl = new AbortController();
   const r = await fetch(`/api/tts?engine=kokoro&stream=1&voice=${encodeURIComponent(voice)}&rate=${TTS.rate()}&text=${encodeURIComponent(text)}`, { signal: ctl.signal });
   if (!r.ok || !r.body) throw new Error('tts');
-  const sr = +r.headers.get('x-sample-rate') || 24000, fx = prefs.vstyle === 'natural' ? null : fxFor(p), rateFx = (fx && fx.rate) || 1;
-  const inNode = c.createGain(), an = c.createAnalyser(); an.fftSize = 256; const g = c.createGain(); g.gain.value = gain; let stops = [];
-  if (fx) { const ch = fxChain(c, inNode, { ...fx, rate: 0 }); stops = ch.stops; ch.node.connect(an); } else inNode.connect(an);   // the pitch (rate) goes on each chunk's source instead
-  an.connect(g); g.connect(AUD.voice);
+  const sr = +r.headers.get('x-sample-rate') || 24000;
+  const inNode = c.createGain(), an = c.createAnalyser(); an.fftSize = 256; const g = c.createGain(); g.gain.value = gain;
+  inNode.connect(an); an.connect(g); g.connect(AUD.voice);   // Kokoro is always heard clean: no cartoon FX chain
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
   const srcs = new Set(); let at = 0, last = Promise.resolve();
@@ -746,8 +745,8 @@ async function speakStream(text, voice, p, gain, token) {
     const n = pcm.byteLength >> 1; if (!n) return;
     const buf = c.createBuffer(1, n, sr), ch = buf.getChannelData(0), v = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
     for (let i = 0; i < n; i++) ch[i] = v.getInt16(i * 2, true) / 32768;
-    const src = c.createBufferSource(); src.buffer = buf; src.playbackRate.value = rateFx; src.connect(inNode);
-    at = Math.max(at, c.currentTime + 0.03); src.start(at); const dur = buf.duration / rateFx; at += dur;
+    const src = c.createBufferSource(); src.buffer = buf; src.connect(inNode);
+    at = Math.max(at, c.currentTime + 0.03); src.start(at); const dur = buf.duration; at += dur;
     srcs.add(src); AUD.live.add(src);
     last = new Promise((res) => { src.onended = () => { srcs.delete(src); AUD.live.delete(src); res(); }; setTimeout(res, dur * 1000 + 800); });
   };
@@ -763,7 +762,7 @@ async function speakStream(text, voice, p, gain, token) {
       }
     }
     if (token === S.token) await last;
-  } finally { srcs.forEach((s) => { try { s.stop(); } catch {} AUD.live.delete(s); }); delete S.level[p.id]; stops.forEach((o) => { try { o.stop(); } catch {} }); }
+  } finally { srcs.forEach((s) => { try { s.stop(); } catch {} AUD.live.delete(s); }); delete S.level[p.id]; }
 }
 async function speakServer(text, p, gain, token, fr = FR()) {
   const voice = TTS.voiceFor(p, fr); if (!voice) throw new Error('no voice');
@@ -774,7 +773,7 @@ async function speakServer(text, p, gain, token, fr = FR()) {
   let buf; try { buf = await TTS.buf(clean, voice, rate); } catch (e) { TTS.fail(); throw e; } if (token !== S.token) return;
   const c = AUD.ctx, src = c.createBufferSource(); src.buffer = buf;
   const an = c.createAnalyser(); an.fftSize = 256; const g = c.createGain(); g.gain.value = gain; let stops = [];
-  if (prefs.vstyle === 'natural') src.connect(an); else { const ch = fxChain(c, src, fxFor(p)); stops = ch.stops; ch.node.connect(an); }
+  if (prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro') src.connect(an); else { const ch = fxChain(c, src, fxFor(p)); stops = ch.stops; ch.node.connect(an); }
   an.connect(g); g.connect(AUD.voice);
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
@@ -793,7 +792,7 @@ function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server
     const next = () => {
       if (i >= parts.length || done || token !== S.token) return fin(true);
       const part = parts[i++].trim(); if (!part) return next();
-      const u = new SpeechSynthesisUtterance(part); u.lang = fr ? 'fr-FR' : 'en-US'; u.voice = voice; u.pitch = prefs.vstyle === 'natural' ? 0.95 + ((p.vi >>> 5) % 5) * 0.03 : p.id === 'main' ? 0.8 : [1.5, 0.6, 1.2, 1.7, 0.9, 0.5, 1.35][(p.vi >>> 3) % 7]; u.rate = Math.min(2, 0.97 * spd() * vspeed());
+      const u = new SpeechSynthesisUtterance(part); u.lang = fr ? 'fr-FR' : 'en-US'; u.voice = voice; u.pitch = prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro' ? 0.95 + ((p.vi >>> 5) % 5) * 0.03 : p.id === 'main' ? 0.8 : [1.5, 0.6, 1.2, 1.7, 0.9, 0.5, 1.35][(p.vi >>> 3) % 7]; u.rate = Math.min(2, 0.97 * spd() * vspeed());
       u.onstart = () => (started = true); u.onend = () => setTimeout(next, 120); u.onerror = () => fin(started); synth.speak(u);
     };
     next();
@@ -1592,12 +1591,12 @@ $('#langSeg').onclick = (e) => { const b = e.target.closest('button'); if (!b) r
 $('#modeSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); };
 $('#menu').onclick = (e) => { const b = e.target.closest('.mi[data-t]'); if (!b) return; prefs[b.dataset.t] = !prefs[b.dataset.t]; savePrefs(); if (prefs[b.dataset.t] && ['voice', 'office', 'music', 'notify'].includes(b.dataset.t)) claimAudio(); b.querySelector('.sw').classList.toggle('on', prefs[b.dataset.t]); AUD.apply(); if (b.dataset.t === 'office') $('#officeBox').style.display = prefs.office ? '' : 'none'; if (b.dataset.t === 'reactions') document.body.classList.toggle('react', prefs.reactions); if (b.dataset.t === 'roster') { document.body.classList.toggle('rost', prefs.roster); paintStates(); } if (b.dataset.t === 'notify' && prefs.notify) askNotify(); if (b.dataset.t === 'vanish' && !prefs.vanish) { S.gone.clear(); paintStatus(); }
   if (b.dataset.t === 'music') { $('#musicBox').style.display = prefs.music ? '' : 'none'; if (prefs.music) { AUD.init(); AUD.apply(); } }
-  if (b.dataset.t === 'kokoro') { TTS.dead = false; TTS.cache.clear(); TTS.init().then(updateHint); kokoroUI(); }
 };
 $('#station').innerHTML = STATIONS.map((s) => `<option value="${s.id}">📻 ${s.name}</option>`).join('');
 $('#station').value = prefs.station; $('#musicVol').value = prefs.musicVol; $('#musicBox').style.display = prefs.music ? '' : 'none';
 $('#station').onchange = (e) => { prefs.station = e.target.value; savePrefs(); AUD.init(); RADIO.sync(); };
-$('#vstyle').innerHTML = [['animal', 'Animal Crossing (babillage)', 'Animal Crossing (babble)'], ['sims', 'Simlish (babillage)', 'Simlish (babble)'], ['cartoon', 'Voix cartoon (voix réelle)', 'Cartoon voices (real voice)'], ['natural', 'Voix naturelles', 'Natural voices']].map(([v, fr, en]) => `<option value="${v}" data-fr="${fr}" data-en="${en}">${L(fr, en)}</option>`).join(''); $('#vstyle').value = prefs.vstyle; $('#vstyle').onchange = () => { prefs.vstyle = $('#vstyle').value; prefs.vstyleChosen = true; savePrefs(); };
+$('#vstyle').innerHTML = [['kokoro', 'Voix naturelles Kokoro', 'Kokoro natural voices'], ['natural', 'Voix système', 'System voices'], ['cartoon', 'Cartoon (voix système + effets)', 'Cartoon (system voice + effects)'], ['animal', 'Animal Crossing (babillage)', 'Animal Crossing (babble)'], ['sims', 'Simlish (babillage)', 'Simlish (babble)']].map(([v, fr, en]) => `<option value="${v}" data-fr="${fr}" data-en="${en}">${L(fr, en)}</option>`).join(''); $('#vstyle').value = prefs.vstyle;
+$('#vstyle').onchange = () => { prefs.vstyle = $('#vstyle').value; prefs.vstyleChosen = true; savePrefs(); TTS.dead = false; TTS.cache.clear(); TTS.init().then(updateHint); kokoroUI(); };
 $('#officeVol').value = prefs.officeVol; $('#officeBox').style.display = prefs.office ? '' : 'none';
 $('#officeVol').oninput = (e) => { prefs.officeVol = +e.target.value; savePrefs(); AUD.applyMusic(); };
 const showVspeed = () => { $('#vspeed').value = vspeed(); $('#vspeedVal').textContent = '×' + vspeed().toFixed(2).replace(/0$/, ''); }; showVspeed();

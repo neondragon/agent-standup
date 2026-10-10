@@ -127,6 +127,17 @@ characters; the lead gets the first.
   and the voice styles sit downstream of the buffer, warm-ahead and the
   hurry rule work as before.
 
+## One voice list (changed 2026-10-10)
+
+The separate *Natural voices (Kokoro)* switch is gone: the engine is a value of
+the existing voice-style dropdown, which now reads Kokoro natural voices
+(default), System voices, Cartoon (system voice + effects), Animal Crossing,
+Simlish. `prefs.vstyle === 'kokoro'` selects the engine; `prefs.kokoro` from
+earlier builds is migrated (unless a style had been chosen explicitly) and
+deleted. Kokoro is always heard clean, never through the cartoon FX chain;
+while Kokoro is not installed that selection plays system voices clean and the
+install box sits under the dropdown.
+
 ## Streaming (added 2026-10-10)
 
 Waiting for a whole line meant a 6 s line sat ~3.5 s before its first word.

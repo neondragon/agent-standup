@@ -165,7 +165,7 @@ If no voice is available the agents "mumble" instead. Each agent gets a stable v
 
 ### Natural voices (Kokoro)
 
-⚙ → Sound → **Natural voices (Kokoro)** replaces the system voices with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), a small neural model that runs on your CPU. Eight English characters and one French voice, assigned so each agent sounds different.
+⚙ → Sound → voice style → **Kokoro natural voices** (the default) replaces the system voices with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), a small neural model that runs on your CPU. Eight English characters and one French voice, assigned so each agent sounds different.
 
 Nothing is bundled: the first time, click **Install** in the same box. It runs `npm install kokoro-js` into `~/.cache/agent-standup/kokoro` (`%LOCALAPPDATA%\agent-standup\kokoro` on Windows) and fetches the model from Hugging Face on first use — about 520 MB once, then nothing leaves your machine. Needs `npm` (comes with Node.js). To remove it, delete that folder.
 
