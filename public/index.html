@@ -259,7 +259,7 @@
   <button class="mi" data-t="voice"><span data-fr="Voix des agents" data-en="Agent voices">Voix des agents</span><i class="sw"></i></button>
   <div class="box" id="vstyleBox" style="display:flex;gap:6px;align-items:center"><select id="vstyle" style="flex:1;min-width:0"></select><button id="vtest" title="Test this voice">▶</button></div>
   <div class="box" id="kokoroBox" style="display:none"><button id="kokoroInstall"></button><div class="hint" id="kokoroHint" style="padding:2px 0 6px"></div></div>
-  <div class="box" id="kokoroOpts" style="display:none"><div class="lbl"><span data-fr="Modèle Kokoro" data-en="Kokoro model">Modèle Kokoro</span></div><select id="kdtype"><option value="q4f16" data-fr="q4f16 — rapide (155 Mo)" data-en="q4f16 — fast (155 MB)">q4f16 — rapide (155 Mo)</option><option value="q8" data-fr="q8 — deux fois plus lent, moins de mémoire (97 Mo de plus)" data-en="q8 — half the speed, less memory (97 MB more)">q8 — deux fois plus lent, moins de mémoire (97 Mo de plus)</option></select><div class="hint" id="kdtypeHint" style="display:none;padding:0 0 6px"></div></div>
+  <div class="box" id="kokoroOpts" style="display:none"><div class="lbl"><span data-fr="Modèle Kokoro" data-en="Kokoro model">Modèle Kokoro</span></div><select id="kdtype"><option value="q4" data-fr="q4 — rapide (305 Mo)" data-en="q4 — fast (305 MB)">q4 — rapide (305 Mo)</option><option value="q8" data-fr="q8 — deux fois plus lent, moins de mémoire (97 Mo de plus)" data-en="q8 — half the speed, less memory (97 MB more)">q8 — deux fois plus lent, moins de mémoire (97 Mo de plus)</option></select><div class="hint" id="kdtypeHint" style="display:none;padding:0 0 6px"></div></div>
   <div class="box" id="uvoiceBox"><div class="lbl"><span data-fr="Votre voix" data-en="Your voice">Votre voix</span></div><select id="uvoice"></select></div>
   <div class="box" id="readBox"><div class="lbl"><span data-fr="Longueur lue" data-en="Spoken length">Longueur lue</span></div><select id="readLen"><option value="full" data-fr="Messages entiers" data-en="Full messages">Messages entiers</option><option value="long" data-fr="Longue (700 caractères)" data-en="Long (700 characters)">Longue (700 caractères)</option><option value="short" data-fr="Courte (une ou deux phrases)" data-en="Short (a sentence or two)">Courte (une ou deux phrases)</option></select></div>
   <div class="box" id="vspeedBox"><div class="lbl"><span data-fr="Vitesse des voix" data-en="Voice speed">Vitesse des voix</span><span id="vspeedVal"></span></div><input id="vspeed" type="range" min="0.7" max="1.6" step="0.05" style="width:100%" aria-label="Voice speed"></div>
@@ -327,13 +327,14 @@ const Q = new URLSearchParams(location.search);
 const EMBED = Q.get('embed') === '1' || window.parent !== window;
 if (Q.get('pin')) S.pin = Q.get('pin');
 
-let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, kokoroDtype: 'q4f16', userVoice: '', readLen: 'full', roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, meme: false, memeLevel: 11, memeVol: 0.8, view: 'call' };
+let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, kokoroDtype: 'q4', userVoice: '', readLen: 'full', roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, meme: false, memeLevel: 11, memeVol: 0.8, view: 'call' };
 let localPrefs = {}; try { localPrefs = JSON.parse(localStorage.getItem('cc.prefs') || '{}'); } catch {}
 const savedPrefs = window.SAVED_PREFS;   // kept by the local server (/api/prefs): the port changes between VS Code windows and reloads, and localStorage is per origin, so it alone forgot everything
 Object.assign(prefs, savedPrefs && typeof savedPrefs === 'object' ? savedPrefs : localPrefs);
 if (prefs.vstyle === 'babble') prefs.vstyle = 'animal', prefs.vstyleChosen = true;
 if (!prefs.vstyleChosen && (prefs.vstyle === 'animal' || prefs.vstyle === 'sims')) prefs.vstyle = 'cartoon';   // the gibberish styles are opt-in: understandable voices by default
 if (!prefs.vstyleChosen && prefs.kokoro !== false) prefs.vstyle = 'kokoro'; delete prefs.kokoro;   // the Kokoro switch of earlier builds is now the 'kokoro' style
+if (prefs.kokoroDtype === 'q4f16') prefs.kokoroDtype = 'q4';   // q4f16 returned silence (NaN) on some lines; q4 is the same graph without the fp16 activations, and faster
 if (prefs.meme && !prefs.office && !prefs.officeChosen) prefs.office = true;   // meme mode plays the office sounds (typing included) unless Office ambience was switched off by hand
 let prefsT = 0;
 const savePrefs = () => { try { localStorage.setItem('cc.prefs', JSON.stringify(prefs)); } catch {} clearTimeout(prefsT); prefsT = setTimeout(() => fetch('/api/prefs', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(prefs), keepalive: true }).catch(() => {}), 250); };   // sliders fire a lot: one write per burst
@@ -625,6 +626,14 @@ const AUD = {
     const s = c.createBufferSource(); s.buffer = b; const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800 + Math.random() * 1500; const g = c.createGain(); g.gain.value = 0.18; s.connect(hp).connect(g).connect(this.sfx); s.start();
   },
   join() { this.tone(523, .14, 'triangle', .1); this.tone(784, .2, 'triangle', .1, .12); },
+  SCRATCH: ['/sfx/scratch-1.mp3', '/sfx/scratch-2.mp3', '/sfx/scratch-3.mp3'], clips: new Map(),
+  async scratch() {   // a real record scratch (one of three bundled clips) when a human message cuts a line that was being read; separate from the office sounds, in the export mix
+    if (!this.ctx || this.off() || !prefs.voice) return; const url = this.SCRATCH[Math.floor(Math.random() * this.SCRATCH.length)];
+    try {
+      if (!this.clips.has(url)) this.clips.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); }).then((ab) => this.ctx.decodeAudioData(ab)));
+      const buf = await this.clips.get(url); if (this.off()) return; const c = this.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = buf; g.gain.value = 0.8; s.connect(g); g.connect(c.destination); g.connect(this.rec); s.start();
+    } catch { this.clips.delete(url); }
+  },
   ding() { this.tone(988, .5, 'triangle', .14); this.tone(1318, .5, 'sine', .06, .02); },
   murmur(pitch, dur) {   // cartoon mumble, used when there is no real voice
     if (!this.ctx || !prefs.voice) return; const c = this.ctx, t = c.currentTime, o = c.createOscillator(); o.type = 'sawtooth';
@@ -729,7 +738,7 @@ const TTS = {
     this.server = false; this.engine = 'system'; this.pool = { fr: [], en: [] }; this.list = { fr: [], en: [] };
     try {
       if (prefs.vstyle === 'kokoro' && !this.dead) {
-        const d = await (await fetch('/api/voices?engine=kokoro&dtype=' + encodeURIComponent(prefs.kokoroDtype || 'q4f16'))).json();
+        const d = await (await fetch('/api/voices?engine=kokoro&dtype=' + encodeURIComponent(prefs.kokoroDtype || 'q4'))).json();
         if (d.available) { this.server = true; this.engine = 'kokoro'; for (const l of ['fr', 'en']) { this.list[l] = d.voices.filter((v) => v.locale.startsWith(l + '_')).slice(0, 8); this.pool[l] = this.list[l].map((v) => v.name); } }
       }
       if (!this.server) {
@@ -1568,7 +1577,7 @@ async function run(i) {
         if (e2.kind !== 'order' && isSub(e2.agent) && !group.some((g) => g.agent === e2.agent)) { group.push(e2); j++; } else break;
       }
     }
-    if (ev.kind === 'user' && S.voiceTok) { if (!S.voiceTok.stop && S.speakers.size) MEME.fire('interrupt'); S.voiceTok.stop = true; }   // a new human message ends the previous turn: cut whatever is still being read (meme mode: record scratch), the human is done with it
+    if (ev.kind === 'user' && S.voiceTok) { if (!S.voiceTok.stop && S.speakers.size) { AUD.scratch(); MEME.fire('interrupt'); } S.voiceTok.stop = true; }   // a new human message ends the previous turn: a record scratch, and whatever was still being read stops; the human is done with it
     await voiceDone(); if (token !== S.token) return;   // the previous line finishes before this one starts; tool events never waited for it
     if (FR() && !S.hurry) { prefetchTr(i); await Promise.race([ensureTr(group.map((g) => baseText(g))), sleep(S.live ? 7000 : 14000)]); if (token !== S.token) return; }
     prefetchQuips(i);
