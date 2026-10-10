@@ -14,6 +14,8 @@ _A fictional team fixing a slow login page — the built-in demo (⚙ → Source
 
 > Unofficial community project, not affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.
 
+> **This is a fork** of [Atoll92/agent-standup](https://github.com/Atoll92/agent-standup) (1.19.2) that adds natural voices (Kokoro-82M, streamed sentence by sentence), full-length spoken messages, a voice speed slider, subtitles that follow the voice, a screen share that stays up, thinking and typing states, settings that survive a reload, and a meme mode. The additions are listed at the top of the [changelog](CHANGELOG.md). The website, downloads and coffee link are upstream's.
+
 ## What you get
 
 - **Token usage per agent** — a ⚡ counter in the header and on each tile shows how many tokens each agent used (input + output + cache writes; cache reads shown separately in the tooltip), counted once per message as recorded by Claude Code. Handy to see which sub-agent is the expensive one. It is read from the session files, not an estimate of your bill.

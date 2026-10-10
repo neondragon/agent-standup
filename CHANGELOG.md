@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — this fork (on top of 1.19.2)
+- **Natural voices (Kokoro-82M)**, the default voice style: installed on demand into `~/.cache/agent-standup/kokoro` (nothing added to the vsix), eight English voices and one French, streamed sentence by sentence so the first words play about a second after the line appears. Model choice q4f16 (default, fast) or q8 (less memory); a model that fails to load is fetched again. One line is made at a time; the line someone is listening to goes before the lines prepared ahead of it.
+- ⚙ → Sound: **voice style** list (Kokoro, system, cartoon, Animal Crossing, Simlish), a **▶** sample exchange with a stop, **Your voice**, **Spoken length** (full messages by default; upstream read one or two sentences), **Voice speed** (×0.7–1.6).
+- **Subtitles follow the voice**, piece by piece, on the tile and on the screen share (strip at the top, clear of the status bar and the camera); timing follows the audio clock, so a stalled context no longer races or cuts a line.
+- Speech no longer holds up the call: the stage moves on while a line plays; a new human message cuts the line being read. A screen share never auto-hides; the next share replaces it. The presenter's own tile moves into the corner of the share.
+- Tiles show **thinking** (eyes away, thought dots) and **typing** (hands move only while a tool runs); the lead keeps its eyes open when done (that means "your turn").
+- Live: the followed session is kept while it is active (no switch mid-line); a workspace folder matches sessions in its subfolders; harness tags are stripped from spoken human text; a decimal point is not a sentence end.
+- **Settings persist** in `~/.config/agent-standup/prefs.json` (shared by every window; an automatic port made localStorage forget them). The settings menu scrolls on a short window.
+- **Meme mode** (⚙ → 🔥, intensity 1–11): airhorns, hitmarkers, Impact captions, vine booms, star wipes, emoji rain over the same call. Off by default.
+- `npm test` (node's test runner, a stub voice worker); tests are kept out of the vsix.
+
 ## 1.19.2
 - Fix: the header could overflow the window when several status pills were shown. The pills now collapse to icon + number on windows narrower than 1180 px (full label on hover), and the call timer hides there.
 
