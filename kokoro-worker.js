@@ -43,7 +43,14 @@ async function main() {
   const req = createRequire(path.join(dir, 'node_modules', 'x.js'));   // resolve from the install dir, not from the extension
   const tf = req('@huggingface/transformers'); tf.env.cacheDir = path.join(dir, 'models');
   const { KokoroTTS, TextSplitterStream } = req('kokoro-js');
-  const tts = await KokoroTTS.from_pretrained(MODEL, { dtype, device: 'cpu' });
+  const load = () => KokoroTTS.from_pretrained(MODEL, { dtype, device: 'cpu' });
+  let tts; try { tts = await load(); } catch (e) {
+    // A download cut short (the worker is killed when the model choice changes) leaves a truncated .onnx that transformers.js
+    // never re-checks; drop this model's files and fetch them again, once.
+    const onnx = path.join(dir, 'models', ...MODEL.split('/'), 'onnx'), name = { q8: 'model_quantized', q4: 'model_q4', fp32: 'model', fp16: 'model_fp16', q4f16: 'model_q4f16' }[dtype] || 'model';
+    let dropped = 0; for (const f of ['.onnx', '.onnx_data']) { try { fs.unlinkSync(path.join(onnx, name + f)); dropped++; } catch {} }
+    if (!dropped) throw e; console.error('kokoro: model files for ' + dtype + ' were unreadable (' + String(e.message).slice(0, 80) + '); fetching them again'); tts = await load();
+  }
   send({ ready: true });
   for await (const line of readline.createInterface({ input: process.stdin })) {
     let m; try { m = JSON.parse(line); } catch { continue; }
