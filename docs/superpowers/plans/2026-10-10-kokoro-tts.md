@@ -50,7 +50,7 @@ test('wav writes a 16-bit mono PCM header and clamps samples', () => {
   assert.equal(buf.readUInt16LE(34), 16);       // bits
   assert.equal(buf.readUInt32LE(40), 12);       // data bytes
   assert.equal(buf.readInt16LE(44), 0);
-  assert.equal(buf.readInt16LE(46), 16383);
+  assert.equal(buf.readInt16LE(46), 16384);
   assert.equal(buf.readInt16LE(48), 32767);
   assert.equal(buf.readInt16LE(50), -32768);
   assert.equal(buf.readInt16LE(52), 32767);     // clamped
@@ -111,7 +111,7 @@ if (require.main === module) main().catch((e) => { console.error(String((e && e.
 - [ ] **Step 4: Run the test, expect pass**
 
 Run: `node --test test/wav.test.js`
-Expected: `# pass 1`.
+Expected: `ℹ pass 1`, `ℹ fail 0`.
 
 - [ ] **Step 5: Commit**
 
@@ -328,7 +328,7 @@ module.exports = { DIR, DTYPE, voices, hasVoice, speedFor, status, install, warm
 - [ ] **Step 4: Run, expect pass**
 
 Run: `node --test test/kokoro.test.js`
-Expected: `# pass 5`.
+Expected: `ℹ pass 5`, `ℹ fail 0`.
 
 - [ ] **Step 5: Commit**
 
@@ -470,7 +470,7 @@ Replace the two voice routes and add the two Kokoro routes:
 - [ ] **Step 4: Run all tests, expect pass**
 
 Run: `node --test test/`
-Expected: `# pass 9`, `# fail 0`.
+Expected: `ℹ pass 9`, `ℹ fail 0`.
 
 - [ ] **Step 5: Commit**
 
@@ -577,7 +577,7 @@ $('#bMenu').onclick = (e) => { e.stopPropagation(); $('#menu').classList.toggle(
 - [ ] **Step 9: Check the page still parses and the tests pass**
 
 Run: `node -e "const s=require('fs').readFileSync('public/index.html','utf8'); const m=s.match(/<script>([\s\S]*)<\/script>/); new Function(m[1]); console.log('ok')"` — Expected: `ok` (syntax only; the script references `document`, so it is compiled, not run).
-Run: `node --test test/` — Expected: `# fail 0`.
+Run: `node --test test/` — Expected: `ℹ fail 0`.
 
 - [ ] **Step 10: Commit**
 
