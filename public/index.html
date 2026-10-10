@@ -460,6 +460,14 @@ function setCaption(id, text) {
 }
 function captionClear(id) { (capTimers.get(id) || []).forEach(clearTimeout); capTimers.delete(id); }
 function captionAt(id, text, ms) { const l = capTimers.get(id) || []; l.push(setTimeout(() => setCaption(id, text), Math.max(0, ms))); capTimers.set(id, l); }
+// Subtitles for audio scheduled on the AudioContext: items are { at: context time, text }. Driven by the context clock, so a
+// stall of the audio (device switch, throttled renderer) stalls the subtitles with it instead of letting them run ahead.
+function captionTicker(id, c, items) {
+  let i = 0; const tick = () => { while (i < items.length && c.currentTime >= items[i].at - 0.02) { setCaption(id, items[i].text); i++; } };
+  const h = setInterval(tick, 100); tick(); return () => clearInterval(h);
+}
+// Realistic speaking time for a line that is not heard here (another window has the sound, or the call is catching up).
+const speechMs = (text) => Math.max(900, (String(text).length / 5.5) / TTS.rate() * 60000);
 function captionSpread(id, text, totalMs, fromMs = 0) {   // no per-piece timing known: each piece gets time in proportion to its length
   const ps = pieces(text); if (ps.length < 2) return; const n = ps.reduce((a, s) => a + s.length, 0); let t = fromMs;
   ps.forEach((s, k) => { if (k) captionAt(id, s, t); t += totalMs * s.length / n; });
@@ -492,8 +500,8 @@ function prefetchTr(i) {
   for (let k = i; k < Math.min(S.events.length, i + 120) && t.length < 24; k++) if (!quiet(S.events[k])) t.push(baseText(S.events[k]));
   ensureTr(t);
 }
-function spoken(ev) {
-  let t = baseText(ev); if (FR() && trMem.has(t)) t = trMem.get(t);
+function spoken(ev, max) {
+  let t = baseText(ev, max); if (FR() && trMem.has(t)) t = trMem.get(t);
   if (ev.kind === 'order') return `${nameOf(ev.to)}, ${t}`;
   if (ev.kind === 'report') return L('Terminé. ', 'Done. ') + t;
   return t;
@@ -794,16 +802,16 @@ async function speakStream(text, voice, p, gain, token) {
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
   const shown = pieces(S.say[p.id] ? S.say[p.id].text : text), said = pieces(text), caps = shown.length === said.length ? shown : said;   // what is displayed, aligned with what is said
-  const srcs = new Set(); let at = 0, last = Promise.resolve(), k = 0, first = null;
+  const srcs = new Set(), capItems = []; let at = 0, k = 0, first = null, ended = false; const stopTicker = captionTicker(p.id, c, capItems);
   const play = (pcm) => {
     const n = pcm.byteLength >> 1; if (!n) return;
     const buf = c.createBuffer(1, n, sr), ch = buf.getChannelData(0), v = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
     for (let i = 0; i < n; i++) ch[i] = v.getInt16(i * 2, true) / 32768;
     const src = c.createBufferSource(); src.buffer = buf; src.connect(inNode);
     at = Math.max(at, c.currentTime + 0.03); src.start(at); const dur = buf.duration;
-    if (caps[k] !== undefined && k) captionAt(p.id, caps[k], (at - c.currentTime) * 1000); if (!k) first = { at, dur }; k++; at += dur;
-    srcs.add(src); AUD.live.add(src);
-    last = new Promise((res) => { src.onended = () => { srcs.delete(src); AUD.live.delete(src); res(); }; setTimeout(res, (at - c.currentTime) * 1000 + 800); });   // from the scheduled end: chunks arrive while earlier ones still play
+    if (caps[k] !== undefined && k) capItems.push({ at, text: caps[k] }); if (!k) first = { at, dur }; k++; at += dur;
+    srcs.add(src); AUD.live.add(src); ended = false;
+    const mine = src; src.onended = () => { srcs.delete(mine); AUD.live.delete(mine); if (!srcs.size) ended = true; };   // the line is over when its last chunk ends
   };
   const reader = r.body.getReader(); let pend = new Uint8Array(0);
   try {
@@ -816,9 +824,12 @@ async function speakStream(text, voice, p, gain, token) {
         play(pend.subarray(4, 4 + len)); pend = pend.slice(4 + len);
       }
     }
-    if (k === 1 && first && caps.length > 1) captionSpread(p.id, caps.join(' '), first.dur * 1000, (first.at - c.currentTime) * 1000);   // the whole line came as one chunk (cached): share it out
-    if (!dead(token)) { let ended = false; last.then(() => (ended = true)); const by = Date.now() + Math.max(0, at - c.currentTime) * 1000 + 800; while (!ended && !dead(token) && Date.now() < by) await sleep(100); }   // wall clock cap: a suspended context never ends a source
-  } finally { srcs.forEach((s) => { try { s.stop(); } catch {} AUD.live.delete(s); }); delete S.level[p.id]; }
+    if (k === 1 && first && caps.length > 1) {   // the whole line came as one chunk (cached): share it out by length, on the context clock
+      const n = caps.reduce((a, s) => a + s.length, 0); let t = first.at; caps.forEach((s, j) => { if (j) capItems.push({ at: t, text: s }); t += first.dur * s.length / n; });
+    }
+    const hardBy = Date.now() + Math.max(0, at - c.currentTime) * 1500 + 10000;   // only for a context that never runs again
+    if (!dead(token)) while (!ended && !dead(token) && c.currentTime < at + 0.3 && Date.now() < hardBy) await sleep(100);
+  } finally { stopTicker(); srcs.forEach((s) => { try { s.stop(); } catch {} AUD.live.delete(s); }); delete S.level[p.id]; }
 }
 async function speakServer(text, p, gain, token, fr = FR()) {
   const voice = TTS.voiceFor(p, fr); if (!voice) throw new Error('no voice');
@@ -834,10 +845,12 @@ async function speakServer(text, p, gain, token, fr = FR()) {
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
   AUD.live.add(src);
-  const rateFx = prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro' ? 1 : (fxFor(p).rate || 1); captionSpread(p.id, S.say[p.id] ? S.say[p.id].text : text, buf.duration * 1000 / rateFx);
-  let ended = false; src.onended = () => (ended = true); src.start(); const by = Date.now() + buf.duration * 1000 + 800;
-  while (!ended && !dead(token) && Date.now() < by) await sleep(100);
-  if (!ended) { try { src.stop(); } catch {} }
+  const rateFx = prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro' ? 1 : (fxFor(p).rate || 1), shown = pieces(S.say[p.id] ? S.say[p.id].text : text), total = buf.duration / rateFx;
+  const t0 = c.currentTime + 0.02, n = shown.reduce((a, s) => a + s.length, 0), items = []; let tt = t0; shown.forEach((s, j) => { if (j) items.push({ at: tt, text: s }); tt += total * s.length / n; });
+  const stopTicker = captionTicker(p.id, c, items);
+  let ended = false; src.onended = () => (ended = true); src.start(t0); const hardBy = Date.now() + total * 1500 + 10000;
+  while (!ended && !dead(token) && c.currentTime < t0 + total + 0.3 && Date.now() < hardBy) await sleep(100);
+  stopTicker(); if (!ended) { try { src.stop(); } catch {} }
   AUD.live.delete(src); delete S.level[p.id]; stops.forEach((o) => { try { o.stop(); } catch {} });
 }
 function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server voice exists (Windows/Linux)
@@ -858,8 +871,10 @@ function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server
   });
 }
 async function speakLine(text, p, primary, token, fr = FR()) {
-  if (AUD.off() || !prefs.voice) { if (!AUD.off() && prefs.office) AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); captionSpread(p.id, text, estMs(text)); return sleep(estMs(text)); }
-  if (S.hurry && !(token && token.sample)) { captionSpread(p.id, text, estMs(text)); return sleep(estMs(text)); }
+  if (AUD.off() || !prefs.voice) {   // not heard here: another window has the sound (keep its pace), or voices are off (be quick)
+    const ms = elsewhere() && prefs.voice ? speechMs(text) : estMs(text);
+    if (!AUD.off() && prefs.office) AUD.murmur(0.5 + (p.vi % 5) / 10, ms / 1000); captionSpread(p.id, text, ms); return sleep(ms);
+  }
   if ((prefs.vstyle === 'animal' || prefs.vstyle === 'sims') && AUD.ctx) { try { captionSpread(p.id, text, estMs(text)); await speakBabble(text, p, primary ? 1 : 0.5, token); return; } catch {} }
   if (TTS.server && AUD.ctx) { try { await speakServer(text, p, primary ? 1 : 0.5, token, fr); return; } catch {} }
   if (primary && synth && !EMBED && (await speakBrowser(text, p, token, fr))) return;
@@ -1417,7 +1432,7 @@ async function run(i) {
     prefetchQuips(i); warmTTS(i);
     const plays = group.map((g, k) => {
       applyStatus(g);
-      const label = g.kind === 'order' ? `${L('pour', 'to')} ${nameOf(g.to)}` : g.kind === 'report' ? `${L('rapport à', 'report to')} ${nameOf(g.to)}` : '', line = spoken(g);
+      const label = g.kind === 'order' ? `${L('pour', 'to')} ${nameOf(g.to)}` : g.kind === 'report' ? `${L('rapport à', 'report to')} ${nameOf(g.to)}` : '', line = spoken(g, S.hurry ? (g.kind === 'order' ? 150 : 180) : 0);   // behind: a sentence or two, not silence
       startTalk(g.agent, line, label);
       if (g.kind === 'order') { S.status[g.to] = 'working'; AUD.join(); setTimeout(() => { paintStatus(); fly(g.agent, g.to, '📨'); popTile(g.to); }, 30); }
       if (g.kind === 'report') { AUD.ding(); setTimeout(() => { fly(g.agent, g.to, '✅'); popTile(g.agent); }, 30); }
