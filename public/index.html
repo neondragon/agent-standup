@@ -160,7 +160,17 @@
   .tile.working .arm { display:none } .tile .laptop, .tile .hands, .tile .sparks, .tile .grin, .tile .eyes-happy, .tile .mouth { display:none }
   .tile.working .laptop, .tile.working .hands, .tile.done .sparks, .tile.done .eyes-happy { display:inline } .tile.done .eyes-open { display:none }
   .tile.speaking .mouth { display:inline } .tile.speaking .smile, .tile.speaking .grin { display:none } .tile.done:not(.speaking) .smile { display:none } .tile.done:not(.speaking) .grin { display:inline }
-  .hand { animation:type .34s ease-in-out infinite } .hand.r { animation-delay:-.17s } @keyframes type { 50% { transform:translateY(-1.3px) } }
+  .hand { animation:none } .tile.typing .hand { animation:type .34s ease-in-out infinite } .tile.typing .hand.r { animation-delay:-.17s } @keyframes type { 50% { transform:translateY(-1.3px) } }
+  /* thinking: a tool is not running, the model is: eyes up and away, one brow up, a slow sway, and three dots above the head */
+  .tile.thinking .pupil { transform:translate(1.3px,-1.5px) } .tile.thinking .brow.l { transform:rotate(4deg) translateY(.2px) } .tile.thinking .brow.r { transform:rotate(-10deg) translateY(-1.7px) }
+  .tile.thinking .fig { animation:ponder 3.2s ease-in-out infinite } @keyframes ponder { 50% { transform:rotate(-2.2deg) translateY(-.6px) } }
+  .tile.thinking.speaking .fig { animation:talk .46s ease-in-out infinite }
+  .think { display:none; position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:3; gap:3px; padding:5px 7px; border-radius:12px; background:rgba(255,255,255,.92); box-shadow:0 2px 8px rgba(0,0,0,.35); pointer-events:none }
+  .think::after { content:''; position:absolute; left:50%; margin-left:-3px; bottom:-5px; width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.92) }
+  .think i { width:5px; height:5px; border-radius:50%; background:#5a6075; animation:dots 1.2s ease-in-out infinite } .think i:nth-child(2) { animation-delay:.2s } .think i:nth-child(3) { animation-delay:.4s }
+  @keyframes dots { 0%,60%,100% { transform:translateY(0); opacity:.45 } 30% { transform:translateY(-3px); opacity:1 } }
+  .tile.thinking:not(.speaking) .think { display:flex } #pcam .think { transform:translateX(-50%) scale(.8); transform-origin:top center }
+  body.presenting .tile.onstage { display:none !important }   /* the sharer's camera is in the corner of their screen, not in the grid as well */
   .tw { animation:tw 3.2s ease-in-out infinite } .pulse { animation:tw 1.7s ease-in-out infinite } @keyframes tw { 50% { opacity:.25 } }
   .drift { animation:drift 24s ease-in-out infinite alternate } @keyframes drift { to { transform:translateX(9px) } }
   .steam { animation:steam 2.6s ease-in-out infinite } @keyframes steam { 50% { transform:translateY(-1.4px); opacity:.25 } }
@@ -886,7 +896,7 @@ async function speakLine(text, p, primary, token, fr = FR()) {
 // =====================================================================
 function addTile(p) {
   const d = document.createElement('div'); d.className = 'tile' + (p.lead ? ' lead' : ''); d.id = 't-' + p.id; d.style.display = 'none'; d.onclick = () => openDetail(p.id);
-  d.innerHTML = `${avatarSVG(p, undefined, 't' + p.gid + '_')}<div class="bubble"></div><div class="status"></div><div class="prop"></div><div class="thought"></div><div class="ticker"></div><div class="tbadge"></div><div class="tag"><b>${esc(p.name)}</b><span>${esc(p.role)}</span><span class="tk"></span></div>`;
+  d.innerHTML = `${avatarSVG(p, undefined, 't' + p.gid + '_')}<div class="bubble"></div><div class="status"></div><div class="prop"></div><div class="think"><i></i><i></i><i></i></div><div class="thought"></div><div class="ticker"></div><div class="tbadge"></div><div class="tag"><b>${esc(p.name)}</b><span>${esc(p.role)}</span><span class="tk"></span></div>`;
   $('#stage').appendChild(d);
 }
 function buildStage() { $('#stage').innerHTML = ''; Object.values(S.agents).forEach(addTile); }
@@ -998,12 +1008,20 @@ function agentState(id, now) {
   return { k: 'working', txt: '⚙ ' + (S.act[id] || L('au travail', 'working')) };
 }
 const STATE_CLASSES = ['working', 'waiting', 'blocked', 'stalled', 'done'];
+const CAM_CLASSES = [...STATE_CLASSES, 'typing', 'thinking', 'speaking'];
+function syncCam() {   // the corner camera shows the same state as the presenter's (hidden) tile
+  const t = S.present && $('#t-' + S.present), cam = $('#pcam'); if (!t) return;
+  CAM_CLASSES.forEach((c) => cam.classList.toggle(c, t.classList.contains(c)));
+}
 function paintStates() {
   const now = Date.now(), n = { working: 0, waiting: 0, blocked: 0, stalled: 0, done: 0 }, ros = [];
   for (const p of Object.values(S.agents)) {
     if (p.id === 'user') continue; const t = $('#t-' + p.id); if (!t) continue;
     const st = agentState(p.id, now), shown = t.style.display !== 'none'; if (shown && n[st.k] !== undefined && !S.gone.has(p.id)) n[st.k]++;
     STATE_CLASSES.forEach((c) => t.classList.toggle(c, st.k === c));
+    const busy = st.k === 'working' || st.k === 'waiting', tool = !!S.run[p.id];
+    t.classList.toggle('typing', st.k === 'working' && tool); t.classList.toggle('thinking', busy && !tool);   // typing while a tool runs, pondering between tools
+    t.classList.toggle('onstage', S.present === p.id); if (S.present === p.id) syncCam();
     const el = t.querySelector('.status'); if (el.textContent !== st.txt) el.textContent = st.txt; el.className = 'status ' + st.k;
     const pr = t.querySelector('.prop'), want = { blocked: '✋', stalled: '😰', waiting: '⌛' }[st.k] || '', was = S.prevState[p.id];   // a raised hand, a sweat drop, an hourglass: the call metaphor for "needs you / stuck / waiting"
     if (st.k === 'done' && was && was !== 'done' && was !== 'idle') { pr.textContent = '🎉'; pr.className = 'prop cheer'; setTimeout(() => { if (pr.classList.contains('cheer')) { pr.textContent = ''; pr.className = 'prop'; } }, 1200); }
@@ -1148,7 +1166,7 @@ function renderPresent() {
   const td = S.todos[id], el = $('#ptodo'); el.style.display = td && td.length ? '' : 'none'; $('#present').classList.toggle('has-todo', !!(td && td.length));
   if (td) el.innerHTML = `<h5>${L('Tâches', 'Tasks')} · ${td.filter((x) => x.s === 'completed').length}/${td.length}</h5>` + td.map((x) => `<div class="td ${x.s}"><i>${x.s === 'completed' ? '☑' : x.s === 'in_progress' ? '◐' : '☐'}</i>${esc(x.c)}</div>`).join('');
   $('#pbadge').textContent = `🖥 ${p.name} ${L('partage son écran', 'is sharing their screen')}`;
-  if (S.camFor !== id) { $('#pcam').innerHTML = avatarSVG(p, undefined, 'c' + p.gid + '_') + `<div class="tag"><b>${esc(p.name)}</b></div>`; S.camFor = id; }
+  if (S.camFor !== id) { $('#pcam').innerHTML = avatarSVG(p, undefined, 'c' + p.gid + '_') + `<div class="think"><i></i><i></i><i></i></div><div class="tag"><b>${esc(p.name)}</b></div>`; S.camFor = id; syncCam(); }
   $('#pcam').classList.toggle('speaking', S.speakers.has(id));
 }
 function armPresent() {   // a screen share shows the latest activity: it stays until another agent's share replaces it (no auto-hide)
@@ -1156,11 +1174,11 @@ function armPresent() {   // a screen share shows the latest activity: it stays 
 }
 function showPresent(id) {
   if (S.boost > 1) return;   // catching up; a speaker does not block the screen share, the voice carries on underneath
-  const first = S.present !== id; S.present = id; $('#present').classList.add('on'); document.body.classList.add('presenting'); renderPresent(); if (first) { layout(); AUD.tone(880, .12, 'sine', .05); }
+  const first = S.present !== id; S.present = id; $('#present').classList.add('on'); document.body.classList.add('presenting'); renderPresent(); if (first) { paintStates(); layout(); AUD.tone(880, .12, 'sine', .05); }
   armPresent();
 }
 function hidePresent() {
-  clearTimeout(presentTimer); if (!S.present) return; S.present = null; $('#present').classList.remove('on'); document.body.classList.remove('presenting'); $('#pcap').textContent = ''; layout();
+  clearTimeout(presentTimer); if (!S.present) return; S.present = null; $('#present').classList.remove('on'); document.body.classList.remove('presenting'); $('#pcap').textContent = ''; paintStates(); layout();
 }
 // the speaker always gets the spotlight (and keeps it until someone else talks)
 function setFocus(id) {
