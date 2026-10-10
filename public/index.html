@@ -287,6 +287,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const hash = (s) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const dead = (t) => (t && typeof t === 'object' ? !!t.stop : t !== S.token);   // a line's token: the playback token, or a {stop} handle for the voice sample
 const SUPPORT = { url: 'https://www.buymeacoffee.com/bored_dev_and_his_robots' };   // e.g. 'https://www.buymeacoffee.com/yourname' — the coffee button stays hidden while this is empty
 const CID = Math.random().toString(36).slice(2, 12);   // identifies this window for the audio-ownership handshake
 const Q = new URLSearchParams(location.search);
@@ -748,7 +749,9 @@ async function speakBabble(text, p, gain, token) {
     t += unit * (sims ? 1.2 : 2.4);
   }
   const data = new Uint8Array(an.fftSize); S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length) * 2.2; };
-  await new Promise((res) => setTimeout(res, Math.max(100, (Math.min(t, end) - c.currentTime) * 1000 + 80)));
+  const fin = Date.now() + Math.max(100, (Math.min(t, end) - c.currentTime) * 1000 + 80);
+  while (Date.now() < fin && !dead(token)) await sleep(100);
+  if (dead(token)) nodes.forEach((o) => { try { o.stop(); } catch {} });
   nodes.forEach((o) => AUD.live.delete(o)); delete S.level[p.id];
 }
 // Kokoro, line not cached yet: play each sentence as the server sends it instead of waiting for the whole line.
@@ -775,23 +778,23 @@ async function speakStream(text, voice, p, gain, token) {
   try {
     for (;;) {
       const { value, done } = await reader.read(); if (done) break;
-      if (token !== S.token) { ctl.abort(); break; }
+      if (dead(token)) { ctl.abort(); break; }
       const b = new Uint8Array(pend.length + value.length); b.set(pend); b.set(value, pend.length); pend = b;
       for (;;) {
         if (pend.length < 4) break; const len = new DataView(pend.buffer, pend.byteOffset).getUint32(0, true); if (pend.length < 4 + len) break;
         play(pend.subarray(4, 4 + len)); pend = pend.slice(4 + len);
       }
     }
-    if (token === S.token) await last;
+    if (!dead(token)) { let ended = false; last.then(() => (ended = true)); while (!ended && !dead(token)) await sleep(100); }
   } finally { srcs.forEach((s) => { try { s.stop(); } catch {} AUD.live.delete(s); }); delete S.level[p.id]; }
 }
 async function speakServer(text, p, gain, token, fr = FR()) {
   const voice = TTS.voiceFor(p, fr); if (!voice) throw new Error('no voice');
   const clean = speakable(text), rate = TTS.rate();
   if (TTS.engine === 'kokoro' && !TTS.cache.has(TTS.key(clean, voice, rate))) {
-    try { return await speakStream(clean, voice, p, gain, token); } catch (e) { if (token === S.token) TTS.fail(); throw e; }
+    try { return await speakStream(clean, voice, p, gain, token); } catch (e) { if (!dead(token)) TTS.fail(); throw e; }
   }
-  let buf; try { buf = await TTS.buf(clean, voice, rate); } catch (e) { TTS.fail(); throw e; } if (token !== S.token) return;
+  let buf; try { buf = await TTS.buf(clean, voice, rate); } catch (e) { TTS.fail(); throw e; } if (dead(token)) return;
   const c = AUD.ctx, src = c.createBufferSource(); src.buffer = buf;
   const an = c.createAnalyser(); an.fftSize = 256; const g = c.createGain(); g.gain.value = gain; let stops = [];
   if (prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro') src.connect(an); else { const ch = fxChain(c, src, fxFor(p)); stops = ch.stops; ch.node.connect(an); }
@@ -799,7 +802,9 @@ async function speakServer(text, p, gain, token, fr = FR()) {
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
   AUD.live.add(src);
-  await new Promise((res) => { src.onended = res; setTimeout(res, buf.duration * 1000 + 800); src.start(); });
+  let ended = false; src.onended = () => (ended = true); src.start(); const until = c.currentTime + buf.duration + 0.8;
+  while (!ended && !dead(token) && c.currentTime < until) await sleep(100);
+  if (!ended) { try { src.stop(); } catch {} }
   AUD.live.delete(src); delete S.level[p.id]; stops.forEach((o) => { try { o.stop(); } catch {} });
 }
 function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server voice exists (Windows/Linux)
@@ -811,7 +816,7 @@ function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server
     setTimeout(() => { if (!started) { synth.cancel(); fin(false); } }, 2500);   // engine never started (e.g. inside a webview)
     setTimeout(() => fin(true), 45000);
     const next = () => {
-      if (i >= parts.length || done || token !== S.token) return fin(true);
+      if (i >= parts.length || done || dead(token)) return fin(true);
       const part = parts[i++].trim(); if (!part) return next();
       const u = new SpeechSynthesisUtterance(part); u.lang = fr ? 'fr-FR' : 'en-US'; u.voice = voice; u.pitch = prefs.vstyle === 'natural' || prefs.vstyle === 'kokoro' ? 0.95 + ((p.vi >>> 5) % 5) * 0.03 : p.id === 'main' ? 0.8 : [1.5, 0.6, 1.2, 1.7, 0.9, 0.5, 1.35][(p.vi >>> 3) % 7]; u.rate = Math.min(2, 0.97 * spd() * vspeed());
       u.onstart = () => (started = true); u.onend = () => setTimeout(next, 120); u.onerror = () => fin(started); synth.speak(u);
@@ -821,7 +826,7 @@ function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server
 }
 async function speakLine(text, p, primary, token, fr = FR()) {
   if (AUD.off() || !prefs.voice) { if (!AUD.off() && prefs.office) AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); return sleep(estMs(text)); }
-  if (S.hurry) return sleep(estMs(text));
+  if (S.hurry && !(token && token.sample)) return sleep(estMs(text));
   if ((prefs.vstyle === 'animal' || prefs.vstyle === 'sims') && AUD.ctx) { try { await speakBabble(text, p, primary ? 1 : 0.5, token); return; } catch {} }
   if (TTS.server && AUD.ctx) { try { await speakServer(text, p, primary ? 1 : 0.5, token, fr); return; } catch {} }
   if (primary && synth && !EMBED && (await speakBrowser(text, p, token, fr))) return;
@@ -1619,8 +1624,11 @@ $('#station').onchange = (e) => { prefs.station = e.target.value; savePrefs(); A
 $('#vstyle').innerHTML = [['kokoro', 'Voix naturelles Kokoro', 'Kokoro natural voices'], ['natural', 'Voix système', 'System voices'], ['cartoon', 'Cartoon (voix système + effets)', 'Cartoon (system voice + effects)'], ['animal', 'Animal Crossing (babillage)', 'Animal Crossing (babble)'], ['sims', 'Simlish (babillage)', 'Simlish (babble)']].map(([v, fr, en]) => `<option value="${v}" data-fr="${fr}" data-en="${en}">${L(fr, en)}</option>`).join(''); $('#vstyle').value = prefs.vstyle;
 // ▶ next to the voice list: a short exchange between the lead and two sub-agents with the current style, engine and speed, so the whole
 // cast can be heard before the next real line. Real agents of the session when there are some, stand-ins otherwise.
+let sampleTok = null;
 $('#vtest').onclick = async () => {
-  const b = $('#vtest'); if (b.disabled) return; b.disabled = true; b.textContent = '…';
+  const b = $('#vtest');
+  if (sampleTok) { sampleTok.stop = true; return; }   // ■ while the sample plays: stop it
+  const tok = (sampleTok = { stop: false, sample: true }); b.textContent = '■'; b.title = L('Arrêter', 'Stop');
   try {
     if (!prefs.voice) { prefs.voice = true; savePrefs(); document.querySelector('#menu .mi[data-t="voice"] .sw').classList.add('on'); }
     if (AUD.muted) toggleMute(); claimAudio(); AUD.init(); AUD.apply();
@@ -1637,10 +1645,11 @@ $('#vtest').onclick = async () => {
       [lead, L('Beau travail, tout le monde. Le café est pour moi.', 'Nice work, everyone. Coffee is on me.')],
     ];
     for (const [p, line] of script) {
+      if (tok.stop) break;
       const tile = S.agents[p.id] && $('#t-' + p.id); if (tile) startTalk(p.id, line, '🔊');
-      try { await speakLine(line, p, true, S.token); } finally { if (tile) stopTalk(p.id); }
+      try { await speakLine(line, p, true, tok); } finally { if (tile) stopTalk(p.id); }
     }
-  } catch {} finally { b.disabled = false; b.textContent = '▶'; }
+  } catch {} finally { sampleTok = null; b.textContent = '▶'; b.title = L('Essayer cette voix', 'Test this voice'); }
 };
 $('#vstyle').onchange = () => { prefs.vstyle = $('#vstyle').value; prefs.vstyleChosen = true; savePrefs(); TTS.dead = false; TTS.cache.clear(); TTS.init().then(updateHint); kokoroUI(); };
 $('#officeVol').value = prefs.officeVol; $('#officeBox').style.display = prefs.office ? '' : 'none';
