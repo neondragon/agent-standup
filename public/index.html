@@ -287,6 +287,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const hash = (s) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const voiceDone = () => S.voice || Promise.resolve();   // the line being spoken, if any (S.voice is set by the run loop)
 const dead = (t) => (t && typeof t === 'object' ? !!t.stop : t !== S.token);   // a line's token: the playback token, or a {stop} handle for the voice sample
 const SUPPORT = { url: 'https://www.buymeacoffee.com/bored_dev_and_his_robots' };   // e.g. 'https://www.buymeacoffee.com/yourname' — the coffee button stays hidden while this is empty
 const CID = Math.random().toString(36).slice(2, 12);   // identifies this window for the audio-ownership handshake
@@ -785,7 +786,7 @@ async function speakStream(text, voice, p, gain, token) {
         play(pend.subarray(4, 4 + len)); pend = pend.slice(4 + len);
       }
     }
-    if (!dead(token)) { let ended = false; last.then(() => (ended = true)); while (!ended && !dead(token)) await sleep(100); }
+    if (!dead(token)) { let ended = false; last.then(() => (ended = true)); const by = Date.now() + Math.max(0, at - c.currentTime) * 1000 + 800; while (!ended && !dead(token) && Date.now() < by) await sleep(100); }   // wall clock cap: a suspended context never ends a source
   } finally { srcs.forEach((s) => { try { s.stop(); } catch {} AUD.live.delete(s); }); delete S.level[p.id]; }
 }
 async function speakServer(text, p, gain, token, fr = FR()) {
@@ -802,8 +803,8 @@ async function speakServer(text, p, gain, token, fr = FR()) {
   const data = new Uint8Array(an.fftSize);
   S.level[p.id] = () => { an.getByteTimeDomainData(data); let s = 0; for (const v of data) { const x = (v - 128) / 128; s += x * x; } return Math.sqrt(s / data.length); };   // drives the mouth
   AUD.live.add(src);
-  let ended = false; src.onended = () => (ended = true); src.start(); const until = c.currentTime + buf.duration + 0.8;
-  while (!ended && !dead(token) && c.currentTime < until) await sleep(100);
+  let ended = false; src.onended = () => (ended = true); src.start(); const by = Date.now() + buf.duration * 1000 + 800;
+  while (!ended && !dead(token) && Date.now() < by) await sleep(100);
   if (!ended) { try { src.stop(); } catch {} }
   AUD.live.delete(src); delete S.level[p.id]; stops.forEach((o) => { try { o.stop(); } catch {} });
 }
@@ -1108,7 +1109,7 @@ function armPresent() {   // stays up while a command is still running, then ~4 
   presentTimer = setTimeout(() => { if (S.present && S.run[S.present] && S.playing) armPresent(); else hidePresent(); }, 4200 / Math.max(1, spd() / 1.2));
 }
 function showPresent(id) {
-  if (S.boost > 1 || (S.speakers.size && !S.speakers.has(id))) return;   // catching up, or someone else has the floor
+  if (S.boost > 1) return;   // catching up; a speaker does not block the screen share, the voice carries on underneath
   const first = S.present !== id; S.present = id; $('#present').classList.add('on'); document.body.classList.add('presenting'); renderPresent(); if (first) { layout(); AUD.tone(880, .12, 'sine', .05); }
   armPresent();
 }
@@ -1381,6 +1382,7 @@ async function run(i) {
         if (e2.kind !== 'order' && isSub(e2.agent) && !group.some((g) => g.agent === e2.agent)) { group.push(e2); j++; } else break;
       }
     }
+    await voiceDone(); if (token !== S.token) return;   // the previous line finishes before this one starts; tool events never waited for it
     if (FR() && !S.hurry) { prefetchTr(i); await Promise.race([ensureTr(group.map((g) => baseText(g))), sleep(S.live ? 7000 : 14000)]); if (token !== S.token) return; }
     prefetchQuips(i); warmTTS(i);
     const plays = group.map((g, k) => {
@@ -1391,11 +1393,12 @@ async function run(i) {
       if (g.kind === 'report') { AUD.ding(); setTimeout(() => { fly(g.agent, g.to, '✅'); popTile(g.agent); }, 30); }
       return speakLine(line, S.agents[g.agent], true, token, FR() && trMem.has(baseText(g))).then(() => stopTalk(g.agent));
     });
-    S.idx = j - 1; paintStatus(); await Promise.all(plays); if (token !== S.token) return;
-    for (const g of group) { await react(g, token); if (token !== S.token) return; }
+    S.idx = j - 1; paintStatus();
+    S.voice = Promise.all(plays).then(async () => { if (token !== S.token) return; for (const g of group) { await react(g, token); if (token !== S.token) return; } }).catch(() => {});   // plays on while the loop shows what happens next
     i = j;
   }
   if (token === S.token) {
+    await voiceDone(); if (token !== S.token) return;   // let the last line finish before the recap
     S.playing = false; clearSpeaking(); syncUI();
     if (!S.exporting && !S.stopAt && !S.live) { S.idx = S.events.length - 1; paintStatus(); if (prefs.epi) await card(L('FIN', 'THE END'), L('Aucun agent n’a été maltraité durant ce tournage.', 'No agents were harmed.'), 2600); openRecap(); }
   }
