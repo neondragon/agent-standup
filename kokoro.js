@@ -18,7 +18,7 @@ const MAX_RESTARTS = 3;
 // Voices in the order agents get them (the lead takes the first), so successive agents sound distinct. Grades from the Kokoro model card.
 const VOICES = [
   ['af_heart', 'Heart', 'en_US'], ['am_fenrir', 'Fenrir', 'en_US'], ['bf_emma', 'Emma', 'en_GB'], ['am_michael', 'Michael', 'en_US'],
-  ['af_bella', 'Bella', 'en_US'], ['bm_george', 'George', 'en_GB'], ['af_nicole', 'Nicole', 'en_US'], ['am_puck', 'Puck', 'en_US'],
+  ['af_bella', 'Bella', 'en_US'], ['bm_george', 'George', 'en_GB'], ['af_sarah', 'Sarah', 'en_US'], ['am_puck', 'Puck', 'en_US'],
   ['ff_siwis', 'Siwis', 'fr_FR'],
 ].map(([name, label, locale]) => ({ name, label, locale }));
 const voices = () => VOICES;
