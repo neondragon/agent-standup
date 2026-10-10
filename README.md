@@ -171,7 +171,7 @@ Nothing is bundled: the first time, click **Install** in the same box. It runs `
 
 Lines are streamed: the first sentence plays about a second after the line appears while the rest is still being synthesised (long sentences are cut at clause boundaries). The first line after a cold start takes a few seconds more (model load). `AGENT_STANDUP_KOKORO_DTYPE=q4` (set in the environment of VS Code or `node server.js`) picks a faster, larger model (304 MB); `AGENT_STANDUP_KOKORO_DIR` moves the install folder. If Kokoro fails mid-session, the call falls back to the system voices.
 
-**Voice speed** (⚙ → Sound) is a multiplier on every voice, system or Kokoro; the default ×1.15 is a touch brisker than the engines' own pace. Live sessions add another ×1.12 so the call keeps up.
+The **▶** next to the voice list makes the lead say a sample line with the current choice. **Voice speed** (⚙ → Sound) is a multiplier on every voice, system or Kokoro; the default ×1.15 is a touch brisker than the engines' own pace. Live sessions add another ×1.12 so the call keeps up.
 
 ## Translation (French ↔ English)
 
