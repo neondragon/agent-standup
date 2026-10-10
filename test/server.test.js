@@ -32,8 +32,9 @@ test('system voices are unchanged', async () => {
 test('the page can pick the kokoro model', async () => {
   const v = await (await get('/api/voices?engine=kokoro&dtype=q8')).json(); assert.equal(v.dtype, 'q8');
   const st = await (await get('/api/kokoro')).json(); assert.equal(st.dtype, 'q8');
-  const back = await (await get('/api/voices?engine=kokoro&dtype=q4f16')).json(); assert.equal(back.dtype, 'q4f16');
-  const junk = await (await get('/api/voices?engine=kokoro&dtype=fp64')).json(); assert.equal(junk.dtype, 'q4f16');
+  const back = await (await get('/api/voices?engine=kokoro&dtype=q4')).json(); assert.equal(back.dtype, 'q4');
+  const junk = await (await get('/api/voices?engine=kokoro&dtype=fp64')).json(); assert.equal(junk.dtype, 'q4');
+  const old = await (await get('/api/voices?engine=kokoro&dtype=q4f16')).json(); assert.equal(old.dtype, 'q4');   // the dropped q4f16 falls back to the default
 });
 
 test('kokoro tts returns a wav once installed', async () => {

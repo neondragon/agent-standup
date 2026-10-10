@@ -7,12 +7,12 @@ const { spawn } = require('child_process');
 
 const WIN = process.platform === 'win32';
 const DIR = process.env.AGENT_STANDUP_KOKORO_DIR || (WIN ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'agent-standup', 'kokoro') : path.join(os.homedir(), '.cache', 'agent-standup', 'kokoro'));
-const DTYPES = /^(q8|q4|fp32|fp16|q4f16)$/;
-let DTYPE = DTYPES.test(process.env.AGENT_STANDUP_KOKORO_DTYPE || '') ? process.env.AGENT_STANDUP_KOKORO_DTYPE : 'q4f16';   // q4f16: 155 MB, fast (same graph and sound as q4 at half the size); q8: 97 MB, half the speed, less RAM
+const DTYPES = /^(q8|q4|fp32|fp16)$/;   // q4f16 is gone: its fp16 activations overflow on some lines and the model returns NaN (silence)
+let DTYPE = DTYPES.test(process.env.AGENT_STANDUP_KOKORO_DTYPE || '') ? process.env.AGENT_STANDUP_KOKORO_DTYPE : 'q4';   // q4: 305 MB, fast (3× realtime on an M1); q8: 97 MB, half the speed, less RAM
 const PKG = 'kokoro-js@1.2.1';
 const WORKER = process.env.AGENT_STANDUP_KOKORO_WORKER || path.join(__dirname, 'kokoro-worker.js');
 const LOG = path.join(DIR, 'install.log');
-const SIZE_MB = 580;   // ≈ 424 MB of packages + 155 MB model (q4f16)
+const SIZE_MB = 730;   // ≈ 424 MB of packages + 305 MB model (q4)
 const MAX_RESTARTS = 3;
 
 // Voices in the order agents get them (the lead takes the first), so successive agents sound distinct. Grades from the Kokoro model card.

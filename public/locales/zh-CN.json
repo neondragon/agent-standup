@@ -177,7 +177,7 @@
  "Nice work, everyone. Coffee is on me.": "Nice work, everyone. Coffee is on me.",
  "npm not found: install Node.js to use natural voices.": "未找到 npm：请安装 Node.js 以使用自然语音。",
  "On it. I will start with the session lookup.": "On it. I will start with the session lookup.",
- "q4f16 — fast (155 MB)": "q4f16 — 快速（155 MB）",
+ "q4 — fast (305 MB)": "q4 — 快速（305 MB）",
  "q8 — half the speed, less memory (97 MB more)": "q8 — 速度减半，内存更省（另需 97 MB）",
  "Retry": "重试",
  "Running the cart suite now, back in a minute.": "Running the cart suite now, back in a minute.",

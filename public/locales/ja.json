@@ -177,7 +177,7 @@
  "Nice work, everyone. Coffee is on me.": "Nice work, everyone. Coffee is on me.",
  "npm not found: install Node.js to use natural voices.": "npm が見つかりません: 自然な声を使うには Node.js をインストールしてください。",
  "On it. I will start with the session lookup.": "On it. I will start with the session lookup.",
- "q4f16 — fast (155 MB)": "q4f16 — 高速（155 MB）",
+ "q4 — fast (305 MB)": "q4 — 高速（305 MB）",
  "q8 — half the speed, less memory (97 MB more)": "q8 — 速度は半分、メモリは少なめ（追加 97 MB）",
  "Retry": "再試行",
  "Running the cart suite now, back in a minute.": "Running the cart suite now, back in a minute.",

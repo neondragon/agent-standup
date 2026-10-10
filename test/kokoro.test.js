@@ -14,7 +14,7 @@ const fakeInstall = () => { const d = path.join(tmp, 'node_modules', 'kokoro-js'
 test('status on an empty dir', () => {
   const st = kokoro.status();
   assert.equal(st.installed, false); assert.equal(st.installing, false); assert.equal(st.ready, false);
-  assert.equal(st.dir, tmp); assert.equal(st.dtype, 'q4f16'); assert.equal(st.error, null); assert.equal(st.gaveUp, false);
+  assert.equal(st.dir, tmp); assert.equal(st.dtype, 'q4'); assert.equal(st.error, null); assert.equal(st.gaveUp, false);
 });
 
 test('voices: lead-first order, locales by prefix', () => {
@@ -31,10 +31,10 @@ test('speedFor maps wpm to a clamped Kokoro speed', () => {
 });
 
 test('setDtype switches the model and ignores junk', () => {
-  assert.equal(kokoro.dtype(), 'q4f16');
-  assert.equal(kokoro.setDtype('q4f16'), false); assert.equal(kokoro.setDtype('fp64'), false); assert.equal(kokoro.setDtype(''), false);
+  assert.equal(kokoro.dtype(), 'q4');
+  assert.equal(kokoro.setDtype('q4'), false); assert.equal(kokoro.setDtype('fp64'), false); assert.equal(kokoro.setDtype('q4f16'), false); assert.equal(kokoro.setDtype(''), false);   // q4f16 is no longer offered (NaN output)
   assert.equal(kokoro.setDtype('q8'), true); assert.equal(kokoro.dtype(), 'q8'); assert.equal(kokoro.status().dtype, 'q8');
-  assert.equal(kokoro.setDtype('q4f16'), true);
+  assert.equal(kokoro.setDtype('q4'), true);
 });
 
 test('synth rejects when not installed', async () => {
@@ -73,7 +73,7 @@ test('a model change keeps the queued lines (made again by the new model), and s
   fakeInstall(); kokoro._reset();
   const wav = (n) => path.join(tmp, n + '.wav');
   const a = kokoro.synth('first', 'af_heart', 1, wav('first')), b = kokoro.synth('second', 'af_heart', 1, wav('second'));
-  assert.equal(kokoro.setDtype('q4'), true);
+  assert.equal(kokoro.setDtype('fp16'), true);
   assert.equal((await a).ok, true); assert.equal((await b).ok, true);
   assert.equal(kokoro.setDtype('q8'), true);
   const c = kokoro.synth('third', 'af_heart', 1, wav('third'));

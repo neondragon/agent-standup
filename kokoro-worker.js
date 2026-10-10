@@ -24,6 +24,7 @@ function wavHeader(bytes, rate) {   // 16-bit PCM mono
   return h;
 }
 const wav = (samples, rate) => { const pcm = pcm16(samples); return Buffer.concat([wavHeader(pcm.length, rate), pcm]); };
+const finite = (samples) => { for (let i = 0; i < samples.length; i++) if (samples[i] !== samples[i]) return false; return true; };   // a quantised model can return NaN for a whole line (fp16 overflow): that would be written as silence
 // Pieces a line is spoken in when streaming: sentences, and long sentences cut at clause boundaries, so the first sound comes fast.
 function pieces(text) {
   const out = [], sents = String(text).split(/(?<=[.!?…]["')\]]*)\s+/);   // a sentence ends at punctuation followed by a space: "2.3 seconds" stays whole
@@ -36,7 +37,7 @@ function pieces(text) {
   }
   return out;
 }
-module.exports = { wav, pcm16, wavHeader, pieces };
+module.exports = { wav, pcm16, wavHeader, pieces, finite };
 
 async function main() {
   const dir = process.env.AGENT_STANDUP_KOKORO_DIR, dtype = process.env.AGENT_STANDUP_KOKORO_DTYPE || 'q4f16';
@@ -51,6 +52,8 @@ async function main() {
     let dropped = 0; for (const f of ['.onnx', '.onnx_data']) { try { fs.unlinkSync(path.join(onnx, name + f)); dropped++; } catch {} }
     if (!dropped) throw e; console.error('kokoro: model files for ' + dtype + ' were unreadable (' + String(e.message).slice(0, 80) + '); fetching them again'); tts = await load();
   }
+  // NaN output (seen with q4f16) is made once more; if it comes back NaN again the line fails, and the server hands it to the system voice instead of caching silence.
+  const sound = async (samples, text, m) => { if (finite(samples)) return samples; const again = await tts.generate(String(text), { voice: m.voice, speed: +m.speed || 1 }); if (finite(again.audio)) return again.audio; throw new Error('the model returned NaN for: ' + String(text).slice(0, 60)); };
   send({ ready: true });
   for await (const line of readline.createInterface({ input: process.stdin })) {
     let m; try { m = JSON.parse(line); } catch { continue; }
@@ -58,16 +61,17 @@ async function main() {
       if (m.stream) {   // one chunk per piece as soon as it is ready; the whole line is still written to `out` at the end
         const splitter = new TextSplitterStream(); for (const p of pieces(m.text)) { splitter.push(p); splitter.flush(); } splitter.close();
         const parts = []; let total = 0;
-        for await (const { audio } of tts.stream(splitter, { voice: m.voice, speed: +m.speed || 1 })) {
-          const pcm = pcm16(audio.audio), seconds = audio.audio.length / audio.sampling_rate; parts.push(pcm); total += seconds;
+        for await (const { text: piece, audio } of tts.stream(splitter, { voice: m.voice, speed: +m.speed || 1 })) {
+          const samples = await sound(audio.audio, piece || m.text, m);
+          const pcm = pcm16(samples), seconds = samples.length / audio.sampling_rate; parts.push(pcm); total += seconds;
           send({ id: m.id, chunk: pcm.toString('base64'), seconds });
         }
         const all = Buffer.concat(parts); fs.writeFileSync(m.out, Buffer.concat([wavHeader(all.length, 24000), all]));
         send({ id: m.id, ok: true, seconds: total }); continue;
       }
-      const a = await tts.generate(String(m.text), { voice: m.voice, speed: +m.speed || 1 });
-      fs.writeFileSync(m.out, wav(a.audio, a.sampling_rate));
-      send({ id: m.id, ok: true, seconds: a.audio.length / a.sampling_rate });
+      const a = await tts.generate(String(m.text), { voice: m.voice, speed: +m.speed || 1 }), samples = await sound(a.audio, m.text, m);
+      fs.writeFileSync(m.out, wav(samples, a.sampling_rate));
+      send({ id: m.id, ok: true, seconds: samples.length / a.sampling_rate });
     } catch (e) { send({ id: m.id, ok: false, error: String((e && e.message) || e).slice(0, 200) }); }
   }
 }

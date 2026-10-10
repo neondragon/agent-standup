@@ -1,7 +1,14 @@
 // test/wav.test.js
 const test = require('node:test');
 const assert = require('node:assert');
-const { wav, pieces } = require('../kokoro-worker.js');
+const { wav, pieces, finite } = require('../kokoro-worker.js');
+
+test('finite spots NaN output (a quantised model can return a whole line of NaN)', () => {
+  assert.equal(finite(new Float32Array([0, 0.5, -1])), true);
+  assert.equal(finite(new Float32Array(0)), true);
+  assert.equal(finite(new Float32Array([0, NaN, 0.2])), false);
+  assert.equal(finite(new Float32Array(1000).fill(NaN)), false);
+});
 
 test('wav writes a 16-bit mono PCM header and clamps samples', () => {
   const buf = wav(new Float32Array([0, 0.5, 1, -1, 2, -2]), 24000);
