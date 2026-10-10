@@ -299,8 +299,9 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const hash = (s) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const nap = async (ms, token) => { const fin = Date.now() + ms; while (Date.now() < fin && !dead(token)) await sleep(Math.min(100, fin - Date.now())); };   // a sleep a preempted line can leave early
 const voiceDone = () => S.voice || Promise.resolve();   // the line being spoken, if any (S.voice is set by the run loop)
-const dead = (t) => (t && typeof t === 'object' ? !!t.stop : t !== S.token);   // a line's token: the playback token, or a {stop} handle for the voice sample
+const dead = (t) => (t && typeof t === 'object' ? !!t.stop || (t.tok !== undefined && t.tok !== S.token) : t !== S.token);   // a line's token: the playback token, a {stop} handle for the voice sample, or the run loop's {tok, stop} handle for a group (stop = preempted by a new human message)
 const SUPPORT = { url: 'https://www.buymeacoffee.com/bored_dev_and_his_robots' };   // e.g. 'https://www.buymeacoffee.com/yourname' — the coffee button stays hidden while this is empty
 const CID = Math.random().toString(36).slice(2, 12);   // identifies this window for the audio-ownership handshake
 const Q = new URLSearchParams(location.search);
@@ -884,12 +885,12 @@ function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server
 async function speakLine(text, p, primary, token, fr = FR()) {
   if (AUD.off() || !prefs.voice) {   // not heard here: another window has the sound (keep its pace), or voices are off (be quick)
     const ms = elsewhere() && prefs.voice ? speechMs(text) : estMs(text);
-    if (!AUD.off() && prefs.office) AUD.murmur(0.5 + (p.vi % 5) / 10, ms / 1000); captionSpread(p.id, text, ms); return sleep(ms);
+    if (!AUD.off() && prefs.office) AUD.murmur(0.5 + (p.vi % 5) / 10, ms / 1000); captionSpread(p.id, text, ms); return nap(ms, token);
   }
   if ((prefs.vstyle === 'animal' || prefs.vstyle === 'sims') && AUD.ctx) { try { captionSpread(p.id, text, estMs(text)); await speakBabble(text, p, primary ? 1 : 0.5, token); return; } catch {} }
   if (TTS.server && AUD.ctx) { try { await speakServer(text, p, primary ? 1 : 0.5, token, fr); return; } catch {} }
   if (primary && synth && !EMBED && (await speakBrowser(text, p, token, fr))) return;
-  captionSpread(p.id, text, estMs(text)); AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); return sleep(estMs(text));
+  captionSpread(p.id, text, estMs(text)); AUD.murmur(0.5 + (p.vi % 5) / 10, estMs(text) / 1000); return nap(estMs(text), token);
 }
 
 // =====================================================================
@@ -1452,19 +1453,21 @@ async function run(i) {
         if (e2.kind !== 'order' && isSub(e2.agent) && !group.some((g) => g.agent === e2.agent)) { group.push(e2); j++; } else break;
       }
     }
+    if (ev.kind === 'user' && S.voiceTok) S.voiceTok.stop = true;   // a new human message ends the previous turn: cut whatever is still being read, the human is done with it
     await voiceDone(); if (token !== S.token) return;   // the previous line finishes before this one starts; tool events never waited for it
     if (FR() && !S.hurry) { prefetchTr(i); await Promise.race([ensureTr(group.map((g) => baseText(g))), sleep(S.live ? 7000 : 14000)]); if (token !== S.token) return; }
     prefetchQuips(i); warmTTS(i);
+    const h = S.voiceTok = { tok: token, stop: false };   // this group's handle: dies with the playback token, or when a human message preempts it
     const plays = group.map((g, k) => {
       applyStatus(g);
       const label = g.kind === 'order' ? `${L('pour', 'to')} ${nameOf(g.to)}` : g.kind === 'report' ? `${L('rapport à', 'report to')} ${nameOf(g.to)}` : '', line = spoken(g, S.hurry ? (g.kind === 'order' ? 150 : 180) : 0);   // behind: a sentence or two, not silence
       startTalk(g.agent, line, label);
       if (g.kind === 'order') { S.status[g.to] = 'working'; AUD.join(); setTimeout(() => { paintStatus(); fly(g.agent, g.to, '📨'); popTile(g.to); }, 30); }
       if (g.kind === 'report') { AUD.ding(); setTimeout(() => { fly(g.agent, g.to, '✅'); popTile(g.agent); }, 30); }
-      return speakLine(line, S.agents[g.agent], true, token, FR() && trMem.has(baseText(g))).then(() => stopTalk(g.agent));
+      return speakLine(line, S.agents[g.agent], true, h, FR() && trMem.has(baseText(g))).then(() => stopTalk(g.agent));
     });
     S.idx = j - 1; paintStatus();
-    S.voice = Promise.all(plays).then(async () => { if (token !== S.token) return; for (const g of group) { await react(g, token); if (token !== S.token) return; } }).catch(() => {});   // plays on while the loop shows what happens next
+    S.voice = Promise.all(plays).then(async () => { if (token !== S.token || h.stop) return; for (const g of group) { await react(g, h); if (token !== S.token || h.stop) return; } }).catch(() => {});   // plays on while the loop shows what happens next
     i = j;
   }
   if (token === S.token) {
