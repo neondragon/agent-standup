@@ -98,9 +98,10 @@
   .ticker em { font-style:normal; color:#9aa3bd; font-size:10px } .ticker em.ok { color:#58d68d } .ticker em.bad { color:#ff7b72 }
   .status { max-width:84%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
   #pbadge { margin-left:auto; flex:none; background:rgba(240,160,32,.94); color:#201400; font-weight:600; font-size:11px; padding:1px 10px; border-radius:99px; white-space:nowrap }
-  #present.has-todo #pcam { right:270px } #pcam { position:absolute; right:28px; bottom:22px; width:158px; height:118px; z-index:2; cursor:default; box-shadow:0 8px 24px rgba(0,0,0,.6) }
+  #present.has-todo #pcam { right:270px } #pcam { position:absolute; right:28px; bottom:22px; width:224px; height:166px; z-index:2; box-shadow:0 8px 24px rgba(0,0,0,.6); border-radius:14px }
+  #pcam .tile { height:100%; display:block !important; animation:none } #pcam .bubble { display:none !important }   /* the presenter's own tile, moved here: every overlay comes with it; the caption bar carries the subtitle */
   #pcap { display:none; position:absolute; left:24px; right:200px; bottom:20px; z-index:2; background:rgba(10,11,16,.84); backdrop-filter:blur(6px); border-radius:10px; padding:6px 12px; font-size:13px } #pcap:not(:empty) { display:block }
-  body.narrow #present { height:clamp(150px,36vh,260px) } body.narrow #pcam { width:110px; height:82px } body.narrow #pcap { right:150px }
+  body.narrow #present { height:clamp(150px,36vh,260px) } body.narrow #pcam { width:150px; height:111px } body.narrow #pcap { right:150px }
   #gantt { display:none; flex:none; width:100%; background:#0f1118; border-top:1px solid var(--line); cursor:pointer }
   body.replay #gantt { display:block }
   aside { display:none; width:320px; flex:none; border-left:1px solid var(--line); background:var(--panel); flex-direction:column; min-height:0 }
@@ -169,8 +170,7 @@
   .think::after { content:''; position:absolute; left:50%; margin-left:-3px; bottom:-5px; width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.92) }
   .think i { width:5px; height:5px; border-radius:50%; background:#5a6075; animation:dots 1.2s ease-in-out infinite } .think i:nth-child(2) { animation-delay:.2s } .think i:nth-child(3) { animation-delay:.4s }
   @keyframes dots { 0%,60%,100% { transform:translateY(0); opacity:.45 } 30% { transform:translateY(-3px); opacity:1 } }
-  .tile.thinking:not(.speaking) .think { display:flex } #pcam .think { transform:translateX(-50%) scale(.8); transform-origin:top center }
-  body.presenting .tile.onstage { display:none !important }   /* the sharer's camera is in the corner of their screen, not in the grid as well */
+  .tile.thinking .think { display:flex }   /* shown even while speaking: the voice replays the last message, the dots say the model is on the next one */ #pcam .think { transform:translateX(-50%) scale(.8); transform-origin:top center }
   .tw { animation:tw 3.2s ease-in-out infinite } .pulse { animation:tw 1.7s ease-in-out infinite } @keyframes tw { 50% { opacity:.25 } }
   .drift { animation:drift 24s ease-in-out infinite alternate } @keyframes drift { to { transform:translateX(9px) } }
   .steam { animation:steam 2.6s ease-in-out infinite } @keyframes steam { 50% { transform:translateY(-1.4px); opacity:.25 } }
@@ -273,7 +273,7 @@
 <main>
   <nav id="roster" aria-label="Agents"></nav>
   <section id="center">
-    <div id="present"><div class="pwin term"><div class="pbar"><i class="r"></i><i class="y"></i><i class="g"></i><span id="ptitle"></span><span id="pbadge"></span></div><div id="pbody"></div><div id="pstat"></div></div><div id="ptodo" style="display:none"></div><div id="pcap"></div><div id="pcam" class="tile working"></div></div>
+    <div id="present"><div class="pwin term"><div class="pbar"><i class="r"></i><i class="y"></i><i class="g"></i><span id="ptitle"></span><span id="pbadge"></span></div><div id="pbody"></div><div id="pstat"></div></div><div id="ptodo" style="display:none"></div><div id="pcap"></div><div id="pcam"></div></div>
     <div id="stage"></div><div id="tree"></div><div id="boardv"></div>
     <div id="reactBar" aria-label="Reactions"><button data-e="👍">👍</button><button data-e="👏">👏</button><button data-e="☕">☕</button><button data-e="🔥">🔥</button><button data-e="🙌">🙌</button></div>
     <canvas id="gantt" height="90"></canvas>
@@ -899,7 +899,7 @@ function addTile(p) {
   d.innerHTML = `${avatarSVG(p, undefined, 't' + p.gid + '_')}<div class="bubble"></div><div class="status"></div><div class="prop"></div><div class="think"><i></i><i></i><i></i></div><div class="thought"></div><div class="ticker"></div><div class="tbadge"></div><div class="tag"><b>${esc(p.name)}</b><span>${esc(p.role)}</span><span class="tk"></span></div>`;
   $('#stage').appendChild(d);
 }
-function buildStage() { $('#stage').innerHTML = ''; Object.values(S.agents).forEach(addTile); }
+function buildStage() { camRestore(); $('#stage').innerHTML = ''; Object.values(S.agents).forEach(addTile); }
 const layout = () => {
   const st = $('#stage'), w = st.clientWidth - 28 || 600, nar = $('#center').clientWidth < 480, cols = nar ? (w >= 300 ? 2 : 1) : Math.max(1, Math.floor((w + 12) / 212)), colw = (w - 12 * (cols - 1)) / cols;
   const rh = Math.round(colw * (nar ? 0.66 : 0.74)); st.style.setProperty('--cols', cols); st.style.setProperty('--rh', rh + 'px'); // Spotlight size: the biggest block (k columns × fr rows) that stays close to 3:2 and leaves room beside it for the others.
@@ -1008,10 +1008,16 @@ function agentState(id, now) {
   return { k: 'working', txt: '⚙ ' + (S.act[id] || L('au travail', 'working')) };
 }
 const STATE_CLASSES = ['working', 'waiting', 'blocked', 'stalled', 'done'];
-const CAM_CLASSES = [...STATE_CLASSES, 'typing', 'thinking', 'speaking'];
-function syncCam() {   // the corner camera shows the same state as the presenter's (hidden) tile
-  const t = S.present && $('#t-' + S.present), cam = $('#pcam'); if (!t) return;
-  CAM_CLASSES.forEach((c) => cam.classList.toggle(c, t.classList.contains(c)));
+// The presenter's own tile moves into the corner of the share and back to its place when the share ends: one video of the
+// agent, with its status, ticker, tokens, animations and lip-sync, instead of a second copy that lacks them.
+function camShow(id) {
+  const cam = $('#pcam'), t = $('#t-' + id); if (!t || t.parentNode === cam) return;
+  camRestore(); S.camMark = document.createComment('cam'); t.parentNode.insertBefore(S.camMark, t); cam.appendChild(t); S.camFor = id;
+}
+function camRestore() {
+  const cam = $('#pcam'), t = cam.firstElementChild;
+  if (t) { if (S.camMark && S.camMark.parentNode) S.camMark.parentNode.insertBefore(t, S.camMark); else $('#stage').appendChild(t); }
+  if (S.camMark) S.camMark.remove(); S.camMark = null; S.camFor = null;
 }
 function paintStates() {
   const now = Date.now(), n = { working: 0, waiting: 0, blocked: 0, stalled: 0, done: 0 }, ros = [];
@@ -1021,7 +1027,7 @@ function paintStates() {
     STATE_CLASSES.forEach((c) => t.classList.toggle(c, st.k === c));
     const busy = st.k === 'working' || st.k === 'waiting', tool = !!S.run[p.id];
     t.classList.toggle('typing', st.k === 'working' && tool); t.classList.toggle('thinking', busy && !tool);   // typing while a tool runs, pondering between tools
-    t.classList.toggle('onstage', S.present === p.id); if (S.present === p.id) syncCam();
+    t.classList.toggle('onstage', S.present === p.id);
     const el = t.querySelector('.status'); if (el.textContent !== st.txt) el.textContent = st.txt; el.className = 'status ' + st.k;
     const pr = t.querySelector('.prop'), want = { blocked: '✋', stalled: '😰', waiting: '⌛' }[st.k] || '', was = S.prevState[p.id];   // a raised hand, a sweat drop, an hourglass: the call metaphor for "needs you / stuck / waiting"
     if (st.k === 'done' && was && was !== 'done' && was !== 'idle') { pr.textContent = '🎉'; pr.className = 'prop cheer'; setTimeout(() => { if (pr.classList.contains('cheer')) { pr.textContent = ''; pr.className = 'prop'; } }, 1200); }
@@ -1166,7 +1172,7 @@ function renderPresent() {
   const td = S.todos[id], el = $('#ptodo'); el.style.display = td && td.length ? '' : 'none'; $('#present').classList.toggle('has-todo', !!(td && td.length));
   if (td) el.innerHTML = `<h5>${L('Tâches', 'Tasks')} · ${td.filter((x) => x.s === 'completed').length}/${td.length}</h5>` + td.map((x) => `<div class="td ${x.s}"><i>${x.s === 'completed' ? '☑' : x.s === 'in_progress' ? '◐' : '☐'}</i>${esc(x.c)}</div>`).join('');
   $('#pbadge').textContent = `🖥 ${p.name} ${L('partage son écran', 'is sharing their screen')}`;
-  if (S.camFor !== id) { $('#pcam').innerHTML = avatarSVG(p, undefined, 'c' + p.gid + '_') + `<div class="think"><i></i><i></i><i></i></div><div class="tag"><b>${esc(p.name)}</b></div>`; S.camFor = id; syncCam(); }
+  camShow(id);
   $('#pcam').classList.toggle('speaking', S.speakers.has(id));
 }
 function armPresent() {   // a screen share shows the latest activity: it stays until another agent's share replaces it (no auto-hide)
@@ -1178,7 +1184,7 @@ function showPresent(id) {
   armPresent();
 }
 function hidePresent() {
-  clearTimeout(presentTimer); if (!S.present) return; S.present = null; $('#present').classList.remove('on'); document.body.classList.remove('presenting'); $('#pcap').textContent = ''; paintStates(); layout();
+  clearTimeout(presentTimer); if (!S.present) return; S.present = null; camRestore(); $('#present').classList.remove('on'); document.body.classList.remove('presenting'); $('#pcap').textContent = ''; paintStates(); layout();
 }
 // the speaker always gets the spotlight (and keeps it until someone else talks)
 function setFocus(id) {
