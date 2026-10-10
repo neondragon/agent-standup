@@ -27,7 +27,7 @@ test('voices: lead-first order, locales by prefix', () => {
 });
 
 test('speedFor maps wpm to a clamped Kokoro speed', () => {
-  assert.equal(kokoro.speedFor(178), 1); assert.equal(kokoro.speedFor(90), 0.6); assert.equal(kokoro.speedFor(360), 1.5); assert.equal(kokoro.speedFor(200), 1.1);
+  assert.equal(kokoro.speedFor(178), 1); assert.equal(kokoro.speedFor(80), 0.5); assert.equal(kokoro.speedFor(400), 2); assert.equal(kokoro.speedFor(200), 1.1); assert.equal(kokoro.speedFor(205), 1.15);
 });
 
 test('synth rejects when not installed', async () => {

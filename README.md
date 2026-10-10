@@ -171,6 +171,8 @@ Nothing is bundled: the first time, click **Install** in the same box. It runs `
 
 The first line after a cold start takes a few seconds (model load); after that each line is ready before the previous one ends on a recent laptop. `AGENT_STANDUP_KOKORO_DTYPE=q4` (set in the environment of VS Code or `node server.js`) picks a faster, larger model (304 MB); `AGENT_STANDUP_KOKORO_DIR` moves the install folder. If Kokoro fails mid-session, the call falls back to the system voices.
 
+**Voice speed** (⚙ → Sound) is a multiplier on every voice, system or Kokoro; the default ×1.15 is a touch brisker than the engines' own pace. Live sessions add another ×1.12 so the call keeps up.
+
 ## Translation (French ↔ English)
 
 Agent messages are in the language of the session. With French selected, each line is translated as it arrives using your local `claude` CLI (`claude -p`, Haiku) through two warm background workers: about 3–4 s per line once warm (the very first line takes ~10 s), then spoken. If a translation is not ready in time (7 s live), that line is read in the original language. The menu shows a hint if translation or the French voice is unavailable.

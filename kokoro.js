@@ -22,7 +22,7 @@ const VOICES = [
 ].map(([name, label, locale]) => ({ name, label, locale }));
 const voices = () => VOICES;
 const hasVoice = (n) => VOICES.some((v) => v.name === n);
-const speedFor = (wpm) => Math.max(0.6, Math.min(1.5, Math.round((wpm / 178) * 20) / 20));
+const speedFor = (wpm) => Math.max(0.5, Math.min(2, Math.round((wpm / 178) * 20) / 20));   // 178 wpm ≈ Kokoro's natural pace
 
 const exists = (f) => { try { fs.statSync(f); return true; } catch { return false; } };
 const installed = () => exists(path.join(DIR, 'node_modules', 'kokoro-js', 'package.json'));

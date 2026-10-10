@@ -184,6 +184,7 @@
   .sw.on { background:var(--accent) } .sw.on::after { transform:translateX(13px) }
   #menu select { width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px 8px; margin:2px 0 6px } #menu .box { padding:0 10px }
   #menu .hint { font-size:11.5px; color:#ffb347; padding:0 10px 6px }
+  #menu .lbl { display:flex; justify-content:space-between; font-size:12.5px; color:var(--dim); padding:4px 0 0 }
   #kokoroInstall { width:100%; padding:7px 10px; border-radius:8px; background:var(--accent); color:#fff; margin:4px 0 2px } #kokoroInstall:disabled { opacity:.5; cursor:default }
   #card { position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center; text-align:center; background:radial-gradient(circle at 50% 40%,#2a3a66,#05060c); color:#fff }
   #card.on { display:flex; animation:fadein .4s } @keyframes fadein { from { opacity:0 } }
@@ -232,6 +233,7 @@
   <button class="mi" data-t="voice"><span data-fr="Voix des agents" data-en="Agent voices">Voix des agents</span><i class="sw"></i></button>
   <button class="mi" data-t="kokoro"><span data-fr="Voix naturelles (Kokoro)" data-en="Natural voices (Kokoro)">Voix naturelles (Kokoro)</span><i class="sw"></i></button>
   <div class="box" id="kokoroBox" style="display:none"><button id="kokoroInstall"></button><div class="hint" id="kokoroHint" style="padding:2px 0 6px"></div></div>
+  <div class="box" id="vspeedBox"><div class="lbl"><span data-fr="Vitesse des voix" data-en="Voice speed">Vitesse des voix</span><span id="vspeedVal"></span></div><input id="vspeed" type="range" min="0.7" max="1.6" step="0.05" style="width:100%" aria-label="Voice speed"></div>
   <button class="mi" data-t="office"><span data-fr="Ambiance de bureau (clavier, café…)" data-en="Office ambience (keys, coffee…)">Ambiance de bureau (clavier, café…)</span><i class="sw"></i></button>
   <div class="box" id="officeBox" style="display:none"><input id="officeVol" type="range" min="0.1" max="1" step="0.05" style="width:100%" aria-label="Ambience volume"></div>
   <button class="mi" data-t="notify"><span data-fr="Me prévenir quand les agents ont fini" data-en="Notify me when agents finish">Me prévenir quand les agents ont fini</span><i class="sw"></i></button>
@@ -288,7 +290,7 @@ const CID = Math.random().toString(36).slice(2, 12);   // identifies this window
 const Q = new URLSearchParams(location.search);
 const EMBED = Q.get('embed') === '1' || window.parent !== window;
 
-let prefs = { lang: 'en', voice: true, kokoro: true, roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'cartoon', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
+let prefs = { lang: 'en', voice: true, kokoro: true, voiceSpeed: 1.15, roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'cartoon', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem('cc.prefs') || '{}')); } catch {}
 if (prefs.vstyle === 'babble') prefs.vstyle = 'animal', prefs.vstyleChosen = true;
 if (!prefs.vstyleChosen && (prefs.vstyle === 'animal' || prefs.vstyle === 'sims')) prefs.vstyle = 'cartoon';   // the gibberish styles are opt-in: understandable voices by default
@@ -421,6 +423,7 @@ const S = { owner: null, agents: {}, events: [], idx: 0, playing: false, token: 
             clock: 0, doneAt: {}, gone: new Set(), leaving: new Set(), demo: false, hold: false };
 const VANISH_MS = 120000;   // a finished agent leaves the call after 2 minutes (playback time)
 const spd = () => (S.live ? 1.12 : +$('#speed').value) * (S.boost || 1);
+const vspeed = () => Math.max(0.7, Math.min(1.6, +prefs.voiceSpeed || 1.15));   // ⚙ → Voice speed, a multiplier on every engine's rate
 const nameOf = (id) => (S.agents[id] || {}).name || id;
 
 // ---------- text prep ----------
@@ -622,7 +625,7 @@ const TTS = {
       for (const l of ['fr', 'en']) this.pool[l] = rankVoices(d.voices.filter((v) => v.locale.startsWith(l + '_')).map((v) => v.name)); } catch {}
   },
   voiceFor(p, fr = FR()) { const pool = this.pool[fr ? 'fr' : 'en']; return pool.length ? (p.id === 'main' ? pool[0] : pool[(p.vi >>> 2) % pool.length]) : null; },
-  rate() { return Math.round(Math.max(120, Math.min(330, 178 * (S.live ? 1.12 : +$('#speed').value))) / 10) * 10; },
+  rate() { return Math.round(Math.max(120, Math.min(360, 178 * vspeed() * (S.live ? 1.12 : +$('#speed').value))) / 10) * 10; },   // wpm; every engine derives its own speed from it
   buf(text, voice, rate) {
     const key = this.engine + '|' + voice + '|' + rate + '|' + text;
     if (!this.cache.has(key)) {
@@ -750,7 +753,7 @@ function speakBrowser(text, p, token, fr = FR()) {   // fallback where no server
     const next = () => {
       if (i >= parts.length || done || token !== S.token) return fin(true);
       const part = parts[i++].trim(); if (!part) return next();
-      const u = new SpeechSynthesisUtterance(part); u.lang = fr ? 'fr-FR' : 'en-US'; u.voice = voice; u.pitch = prefs.vstyle === 'natural' ? 0.95 + ((p.vi >>> 5) % 5) * 0.03 : p.id === 'main' ? 0.8 : [1.5, 0.6, 1.2, 1.7, 0.9, 0.5, 1.35][(p.vi >>> 3) % 7]; u.rate = Math.min(1.7, 0.97 * spd());
+      const u = new SpeechSynthesisUtterance(part); u.lang = fr ? 'fr-FR' : 'en-US'; u.voice = voice; u.pitch = prefs.vstyle === 'natural' ? 0.95 + ((p.vi >>> 5) % 5) * 0.03 : p.id === 'main' ? 0.8 : [1.5, 0.6, 1.2, 1.7, 0.9, 0.5, 1.35][(p.vi >>> 3) % 7]; u.rate = Math.min(2, 0.97 * spd() * vspeed());
       u.onstart = () => (started = true); u.onend = () => setTimeout(next, 120); u.onerror = () => fin(started); synth.speak(u);
     };
     next();
@@ -1557,6 +1560,8 @@ $('#station').onchange = (e) => { prefs.station = e.target.value; savePrefs(); A
 $('#vstyle').innerHTML = [['animal', 'Animal Crossing (babillage)', 'Animal Crossing (babble)'], ['sims', 'Simlish (babillage)', 'Simlish (babble)'], ['cartoon', 'Voix cartoon (voix réelle)', 'Cartoon voices (real voice)'], ['natural', 'Voix naturelles', 'Natural voices']].map(([v, fr, en]) => `<option value="${v}" data-fr="${fr}" data-en="${en}">${L(fr, en)}</option>`).join(''); $('#vstyle').value = prefs.vstyle; $('#vstyle').onchange = () => { prefs.vstyle = $('#vstyle').value; prefs.vstyleChosen = true; savePrefs(); };
 $('#officeVol').value = prefs.officeVol; $('#officeBox').style.display = prefs.office ? '' : 'none';
 $('#officeVol').oninput = (e) => { prefs.officeVol = +e.target.value; savePrefs(); AUD.applyMusic(); };
+const showVspeed = () => { $('#vspeed').value = vspeed(); $('#vspeedVal').textContent = '×' + vspeed().toFixed(2).replace(/0$/, ''); }; showVspeed();
+$('#vspeed').oninput = (e) => { prefs.voiceSpeed = +e.target.value; savePrefs(); showVspeed(); };
 $('#musicVol').oninput = (e) => { prefs.musicVol = +e.target.value; savePrefs(); AUD.applyMusic(); };
 $('#tok').onclick = () => openRecap();
 $('#bMenu').onclick = (e) => { e.stopPropagation(); $('#menu').classList.toggle('on'); kokoroUI(); };
