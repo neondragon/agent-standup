@@ -1,8 +1,8 @@
 {
   "name": "agent-standup",
   "displayName": "Agent Standup",
-  "description": "Watch your Claude Code session as a live, animated team call: the lead gives orders, sub-agents join, share their screen and report back \u2014 with voices, a sub-agent tree, timeline, recap and video export.",
-  "version": "1.19.2",
+  "description": "%extension.description%",
+  "version": "1.22.0",
   "publisher": "DoubleGeste",
   "license": "MIT",
   "engines": {
@@ -23,21 +23,30 @@
     "package": "npx --yes @vscode/vsce package --allow-missing-repository --skip-license",
     "landing": "node scripts/build-landing.js",
     "capture": "node scripts/capture-demo.js all",
-    "stats": "node scripts/stats.js"
+    "stats": "node scripts/stats.js",
+    "promo": "node scripts/capture-promo.js",
+    "story": "node scripts/make-story.js",
+    "i18n": "node scripts/i18n.js check",
+    "i18n:extract": "node scripts/i18n.js extract",
+    "build:cli": "node scripts/build-cli.js"
   },
   "contributes": {
     "commands": [
       {
         "command": "agentStandup.open",
-        "title": "Agent Standup: Open live call"
+        "title": "%command.open.title%"
       },
       {
         "command": "agentStandup.openInBrowser",
-        "title": "Agent Standup: Open in browser (voice + sound)"
+        "title": "%command.openInBrowser.title%"
       },
       {
         "command": "agentStandup.focus",
-        "title": "Agent Standup: Show sidebar"
+        "title": "%command.focus.title%"
+      },
+      {
+        "command": "agentStandup.openCharacters",
+        "title": "%command.openCharacters.title%"
       }
     ],
     "configuration": {
@@ -46,27 +55,37 @@
         "agentStandup.port": {
           "type": "number",
           "default": 0,
-          "description": "Local port of the Agent Standup server. 0 (default) picks a free port automatically for each VS Code window."
+          "description": "%config.port.description%"
         },
         "agentStandup.autoOpen": {
           "type": "boolean",
           "default": false,
-          "description": "Open the live call automatically when VS Code starts."
+          "description": "%config.autoOpen.description%"
         },
         "agentStandup.onlyThisWorkspace": {
           "type": "boolean",
           "default": true,
-          "description": "Follow only Claude Code sessions started in the current workspace folder."
+          "description": "%config.onlyThisWorkspace.description%"
+        },
+        "agentStandup.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.statusBar.description%"
         },
         "agentStandup.shareUsage": {
           "type": "boolean",
           "default": false,
-          "description": "Help the project count active installs: once a day, send one empty request to a 1-pixel file on GitHub (no identifier, no content; GitHub sees your IP like for any download). Off by default; ignored if VS Code telemetry is off."
+          "description": "%config.shareUsage.description%"
         },
         "agentStandup.claudePath": {
           "type": "string",
           "default": "",
-          "description": "Full path to the Claude Code executable, if it is not found automatically (used for French translation)."
+          "description": "%config.claudePath.description%"
+        },
+        "agentStandup.charactersPath": {
+          "type": "string",
+          "default": "",
+          "description": "%config.charactersPath.description%"
         }
       }
     },
@@ -84,7 +103,7 @@
         {
           "type": "webview",
           "id": "agentStandup.view",
-          "name": "Live call"
+          "name": "%view.name%"
         }
       ]
     }
@@ -113,5 +132,9 @@
   "homepage": "https://atoll92.github.io/agent-standup/",
   "bugs": {
     "url": "https://github.com/Atoll92/agent-standup/issues"
+  },
+  "l10n": "./l10n",
+  "bin": {
+    "agent-standup": "bin/agent-standup.js"
   }
 }

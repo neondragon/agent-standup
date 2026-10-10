@@ -5,3 +5,12 @@ landing/**
 scripts/**
 .github/**
 test/**
+
+examples/**
+
+bin/**
+desktop/**
+dist-cli/**
+dist-desktop/**
+dist-release/**
+ROADMAP.md

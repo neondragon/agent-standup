@@ -1,0 +1,32 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax
+        run: |
+          node --check server.js
+          node --check extension.js
+          node --check bin/agent-standup.js
+          node -e "new Function('return async function(){' + require('fs').readFileSync('public/index.html','utf8').split('<script>')[1].split('</script>')[0] + '}')"
+      - name: Translations are complete and consistent
+        run: npm run i18n
+      - name: Package the command line tool and smoke-test it
+        run: |
+          node scripts/build-cli.js
+          cd dist-cli && npm pack --silent && cd ..
+          mkdir /tmp/smoke && cd /tmp/smoke && npm init -y >/dev/null && npm i --silent "$GITHUB_WORKSPACE"/dist-cli/*.tgz
+          ./node_modules/.bin/agent-standup --version
+          ./node_modules/.bin/agent-standup status
+          (./node_modules/.bin/agent-standup --port 4791 &) ; sleep 2
+          curl -fsS localhost:4791/api/health
+          curl -fsS -o /dev/null localhost:4791/
+          curl -fsS -o /dev/null localhost:4791/locales/ja.json

@@ -1,0 +1,38 @@
+# Publishes a release everywhere it can: VS Code Marketplace, Open VSX (Cursor, Windsurf, VSCodium…) and npm (the `agent-standup` command).
+# Each target is skipped when its secret is not set, so this is safe to keep enabled. Secrets to add in the repository settings:
+#   VSCE_PAT  (Azure DevOps token, scope Marketplace > Manage)   OVSX_PAT  (open-vsx.org token)   NPM_TOKEN  (npm automation token)
+name: Publish
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}   # not called NODE_AUTH_TOKEN on purpose: setup-node fills that one with a placeholder when it is unset, which would make the check below always true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - name: Build the extension package
+        run: npx --yes @vscode/vsce package -o extension.vsix
+      - name: VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx --yes @vscode/vsce publish --packagePath extension.vsix --skip-duplicate
+      - name: Open VSX
+        if: env.OVSX_PAT != ''
+        run: npx --yes ovsx publish extension.vsix -p "$OVSX_PAT" --skip-duplicate
+      - name: npm
+        if: env.NPM_TOKEN != ''
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "npm account: $(npm whoami 2>/dev/null || echo 'unknown (token cannot read the profile, that is fine)')"
+          node scripts/build-cli.js
+          cd dist-cli
+          if npm view "$(node -p "require('./package.json').name")@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then echo "already published"; else npm publish --access public; fi

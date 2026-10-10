@@ -1,0 +1,37 @@
+# Experimental: builds the unsigned desktop app for Windows and Linux when a release tag is pushed, and attaches the archives to the release.
+# Only the macOS builds (made by hand) have been tested; a failure here does not block anything else.
+name: Desktop app
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    continue-on-error: true
+    strategy:
+      matrix:
+        include:
+          - { os: windows-latest, name: windows-x64 }
+          - { os: ubuntu-latest, name: linux-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/build-desktop.js
+      - name: Zip (Linux)
+        if: runner.os == 'Linux'
+        run: cd dist-desktop && zip -qr "../Agent-Standup-${GITHUB_REF_NAME#v}-${{ matrix.name }}.zip" ./*
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist-desktop\* -DestinationPath "Agent-Standup-$($env:GITHUB_REF_NAME.TrimStart('v'))-${{ matrix.name }}.zip"
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: gh release upload "$GITHUB_REF_NAME" Agent-Standup-*.zip --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

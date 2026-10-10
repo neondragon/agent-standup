@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — this fork (on top of 1.19.2)
+## Unreleased — this fork (on top of 1.22.0)
 - **Natural voices (Kokoro-82M)**, the default voice style: installed on demand into `~/.cache/agent-standup/kokoro` (nothing added to the vsix), eight English voices and one French, streamed sentence by sentence so the first words play about a second after the line appears. Model choice q4f16 (default, fast) or q8 (less memory); a model that fails to load is fetched again. One line is made at a time; the line someone is listening to goes before the lines prepared ahead of it.
 - ⚙ → Sound: **voice style** list (Kokoro, system, cartoon, Animal Crossing, Simlish), a **▶** sample exchange with a stop, **Your voice**, **Spoken length** (full messages by default; upstream read one or two sentences), **Voice speed** (×0.7–1.6).
 - **Subtitles follow the voice**, piece by piece, on the tile and on the screen share (strip at the top, clear of the status bar and the camera); timing follows the audio clock, so a stalled context no longer races or cuts a line.
@@ -10,6 +10,43 @@
 - **Settings persist** in `~/.config/agent-standup/prefs.json` (shared by every window; an automatic port made localStorage forget them). The settings menu scrolls on a short window.
 - **Meme mode** (⚙ → 🔥, intensity 1–11): airhorns, hitmarkers, Impact captions, vine booms, star wipes, emoji rain over the same call; a real record scratch when your message cuts a line being read; it turns the office ambience (typing included) on. Off by default.
 - `npm test` (node's test runner, a stub voice worker); tests are kept out of the vsix.
+
+## 1.22.0
+- **`agent-standup` command line** (npm package `@double_geste/agent-standup`, also attached to the release as a `.tgz`): `agent-standup --open` starts the local server and opens the call without any editor; `agent-standup status [--here] [--json]` prints what is going on; `agent-standup statusline` is a one-line indicator for the Claude Code status line, tmux and Neovim.
+- **Desktop app for macOS** (Apple Silicon and Intel, unsigned): its own window plus a menu bar indicator (`⚙2 ✋1`) and a notification when an agent may need you. Built with Electron from the same server; Windows/Linux builds are set up in CI (experimental).
+- **Publishing automation**: `.github/workflows/publish.yml` publishes tagged releases to the VS Code Marketplace, Open VSX (Cursor, Windsurf, VSCodium…) and npm when the corresponding tokens are set; `ci.yml` checks syntax, translations and the CLI package on every push.
+- `ROADMAP.md`: what works where, plus research notes on other agent tools and on Rive.
+
+## 1.21.0
+- **Languages**: English, Français, 繁體中文, 简体中文, Español, Deutsch, Português (Brasil), 日本語, chosen in ⚙ → Language and remembered. Translations are plain JSON catalogues (`public/locales/`), with fallback to English for anything missing, a checker (`npm run i18n`) and a contributor guide. The VS Code manifest (command titles, setting descriptions) and the status bar texts are localised with VS Code's own `package.nls` / `l10n` mechanism. Non-English and non-French catalogues are AI drafts awaiting native review.
+- **Your own characters**: drop your pixel art (PNG/GIF/WebP) in `~/.agent-standup/characters` — `lead.png`, `you.png`, any other image for the sub-agents, `name-talk.png` for an open-mouth frame — and it replaces the drawn figures, crisp and animated (bob, talking frame), with all states still shown. New command "Open characters folder", setting `agentStandup.charactersPath`, and a starter pack in `examples/characters`.
+
+## 1.20.3
+- Fix: the raised-hand animation of an agent that may need you shared its name with the talking arm animation, so one overrode the other; each now has its own.
+
+## 1.20.2
+- Fix: in Live, the lead's orders to sub-agents and the sub-agents' answers were often not heard. A burst of orders set off a catch-up mode that skipped voices and sped everything up. Now every line is read: when many are waiting each one is shortened to its first sentence (the bubble still shows the full text), only a backlog of more than a dozen lines is skipped, and in Live the voices speak one at a time instead of over each other.
+
+## 1.20.1
+Fixes from a second review pass by sub-agents:
+- Loop watch: a batch of failing calls now counts once (it used to count each call), so four failures in a row means four failed steps.
+- A pinned session that no longer exists no longer keeps the view silently pinned; the status bar refreshes the moment VS Code regains focus; a disposed panel is recreated instead of throwing.
+- README: `statusBar` setting listed, duplicate sections merged, and the "zero token cost" claim now says it holds unless French translation or jokes are turned on.
+
+## 1.20.0
+Three features and a round of polish (chosen from a research pass by sub-agents; each approved before building):
+- **VS Code status bar**: live counts for your workspace — "⚠ 1 needs you", "⟳ 3 working", "✓ your turn" — red when an agent may be waiting for you, with the sessions listed on hover. A click opens the call on the most urgent session (new setting `agentStandup.statusBar`, on by default). It reads the session files directly, so it works even before the panel is opened.
+- **Context gauge**: "ctx 62%" in the header for the lead and on each tile and list row from 50%, orange at 70%, red at 88%, plus one warning before auto-compaction and a toast when the conversation is compacted. The window (200k or 1M) is inferred from observed sizes since transcripts do not state it; hover shows tokens used / window.
+- **Highlights and loop watch**: in Replay, one-click jumps to the first error, the longest agent wait (waits for you and gaps over an hour are ignored), compactions, and a possible loop. A 🔁 badge appears on an agent that repeats the exact same call 3 times or fails 4 times in a row (polling and screenshot tools are ignored).
+- **Polish** (from a UX best-practices review): higher contrast for dim text and tile labels, bigger status chips, done tiles no longer fade their text, calmer idle cards, a coloured dot on the tab icon when something needs you, a friendly "standing by" instead of a lone dot, smoother hover and press feedback.
+
+## 1.19.3
+Found by eight read-only sub-agents testing the app (each finding checked before applying):
+- API: an unknown session now answers 404 (was 500), over-long ids answer 400; `/api/sessions` is ~10x faster cold (titles from a cached tail read instead of reading whole files) and cached for 2 s. A title you typed (custom title) now wins over the generated one.
+- Tool calls shown properly instead of raw JSON: questions to the user (with the options), skills, tool search, notebook edits and MCP tools ("server · tool").
+- Accessibility: tiles and agent-list rows are reachable and openable from the keyboard (Tab, Enter/Space), visible focus ring, "reduce motion" now stops every animation including confetti, toasts are announced politely, and a few labels that were English-only are translated.
+- README: Sessions tab, `shareUsage` setting, exact menu labels, and the second "Voices" section renamed "Voice engines (per OS)".
+- The call timer rests while the tab is hidden.
 
 ## 1.19.2
 - Fix: the header could overflow the window when several status pills were shown. The pills now collapse to icon + number on windows narrower than 1180 px (full label on hover), and the call timer hides there.

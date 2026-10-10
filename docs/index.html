@@ -57,29 +57,7 @@ footer a { color:inherit }
 @media (max-width:620px) { .shots { grid-template-columns:1fr } }
 .shots figure { margin:0 } .shots img { display:block; width:100%; border-radius:12px; box-shadow:0 6px 18px rgba(60,40,20,.18) } .shots figcaption { color:var(--dim); font-size:13.5px; margin-top:8px; line-height:1.4 }
 .soon { color:var(--dim); font-size:14px }
-/* character animation: all state-driven from the tile's classes */
-  .fig { transform-origin:50px 76px; animation:bob 4.4s ease-in-out infinite; animation-delay:var(--d,0s) } @keyframes bob { 50% { transform:translateY(-.9px) } }
-  .tile.speaking .fig { animation:talk .46s ease-in-out infinite } @keyframes talk { 50% { transform:scale(1.025,.985) translateY(-.5px) } }
-  .tile.vanishing { pointer-events:none; z-index:3; animation:vanish 1.2s cubic-bezier(.45,0,.75,.35) forwards }
-  @keyframes vanish { 0% { filter:none; transform:none; opacity:1 } 16% { filter:brightness(1.7) saturate(1.5); transform:scale(1.05) } 55% { filter:brightness(2.3) blur(1.5px); transform:scale(.88) rotate(-3deg); opacity:.85 } 100% { filter:brightness(3.4) blur(11px); transform:scale(.12) rotate(11deg); opacity:0 } }
-  .tile.vanishing::after { content:''; position:absolute; inset:0; background:radial-gradient(circle,#fff 0,rgba(255,255,255,0) 68%); opacity:0; animation:flash2 .7s ease-out .15s }
-  @keyframes flash2 { 40% { opacity:.9 } }
-  .puff { position:fixed; left:0; top:0; z-index:9; pointer-events:none; border-radius:50% }
-  #toasts { position:absolute; left:12px; bottom:12px; z-index:6; display:flex; flex-direction:column; gap:6px; pointer-events:none }
-  .toast { background:rgba(27,29,39,.92); border:1px solid var(--line); border-radius:99px; padding:5px 12px; font-size:12px; animation:toast 3s ease forwards } @keyframes toast { 0% { opacity:0; transform:translateY(6px) } 10%, 80% { opacity:1; transform:none } 100% { opacity:0 } }
-  .eye { transform-box:fill-box; transform-origin:center; animation:blink 4.6s infinite; animation-delay:var(--d,0s) } @keyframes blink { 0%,94%,100% { transform:scaleY(1) } 97% { transform:scaleY(.08) } }
-  .brow { transform-box:fill-box; transform-origin:center; transition:transform .25s } .tile.speaking .brow { animation:brow .7s ease-in-out infinite } @keyframes brow { 50% { transform:translateY(-1.1px) } }
-  .tile.working .brow.l { transform:rotate(13deg) translateY(.5px) } .tile.working .brow.r { transform:rotate(-13deg) translateY(.5px) } .tile.working .pupil { transform:translateY(1.2px) }
-  .arm.l { transform-origin:27px 48px } .arm.r { transform-origin:73px 48px } .tile.speaking .arm.r { animation:wave .7s ease-in-out infinite } @keyframes wave { 50% { transform:rotate(-34deg) } }
-  .tile.working .arm { display:none } .tile .laptop, .tile .hands, .tile .sparks, .tile .grin, .tile .eyes-happy, .tile .mouth { display:none }
-  .tile.working .laptop, .tile.working .hands, .tile.done .sparks, .tile.done .eyes-happy { display:inline } .tile.done .eyes-open { display:none }
-  .tile.speaking .mouth { display:inline } .tile.speaking .smile, .tile.speaking .grin { display:none } .tile.done:not(.speaking) .smile { display:none } .tile.done:not(.speaking) .grin { display:inline }
-  .hand { animation:type .34s ease-in-out infinite } .hand.r { animation-delay:-.17s } @keyframes type { 50% { transform:translateY(-1.3px) } }
-  .tw { animation:tw 3.2s ease-in-out infinite } .pulse { animation:tw 1.7s ease-in-out infinite } @keyframes tw { 50% { opacity:.25 } }
-  .drift { animation:drift 24s ease-in-out infinite alternate } @keyframes drift { to { transform:translateX(9px) } }
-  .steam { animation:steam 2.6s ease-in-out infinite } @keyframes steam { 50% { transform:translateY(-1.4px); opacity:.25 } }
-  .tile.done .sparks path { animation:tw 1.6s ease-in-out infinite }
-  @media (prefers-reduced-motion:reduce) { .tile *, .tile { animation:none !important } }
+
 </style>
 </head>
 <body>
@@ -98,7 +76,7 @@ footer a { color:inherit }
     <p class="note" data-en="(An illustration. The real thing is live, has voices, and follows your actual session.)" data-fr="(Une illustration. La vraie version est en direct, avec des voix, et suit votre vraie session.)">(An illustration. The real thing is live, has voices, and follows your actual session.)</p>
 
     <div class="cta-row">
-      <a class="cta" id="dl" href="https://github.com/Atoll92/agent-standup/releases/latest"><span id="dlT" data-en="Download for VS Code" data-fr="Télécharger pour VS Code">Download for VS Code</span><small id="dlS">v1.19.2</small></a>
+      <a class="cta" id="dl" href="https://github.com/Atoll92/agent-standup/releases/latest"><span id="dlT" data-en="Download for VS Code" data-fr="Télécharger pour VS Code">Download for VS Code</span><small id="dlS">v1.22.0</small></a>
       <span class="fine" data-en="Free · open source · Mac, Windows, Linux" data-fr="Gratuit · open source · Mac, Windows, Linux">Free · open source · Mac, Windows, Linux</span>
     </div>
 
@@ -168,7 +146,26 @@ function uniqueName(id, h) {
 const PAL = ['#ff7a6b','#ffb347','#ffd84a','#4fd1a5','#4cc3ff','#7c8cff','#b583ff','#ff7eb6'];
 const hexRGB = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const mix = (a, b, t) => { const A = hexRGB(a), B = hexRGB(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
-function persona(a) {
+// ---- custom characters: the person's own pixel art (folder served by /api/characters) replaces the drawn figure, scene and desk stay ----
+let CHARS = { lead: null, you: null, pool: [], dir: '', n: 0 };
+const toData = (url) => fetch(url).then((r) => r.blob()).then((b) => new Promise((res) => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b); }));
+async function loadChars() {
+  const next = { lead: null, you: null, pool: [], dir: '', n: 0 };
+  try {
+    const d = await (await fetch('/api/characters')).json(); next.dir = d.dir || '';
+    for (const c of d.chars || []) { try { const e = { name: c.stem, idle: await toData('/characters/' + encodeURIComponent(c.file)), talk: c.talk ? await toData('/characters/' + encodeURIComponent(c.talk)) : null };
+      if (c.role === 'lead') next.lead = e; else if (c.role === 'you') next.you = e; else next.pool.push(e); next.n++; } catch {} }
+  } catch {}
+  CHARS = next;
+}
+const customFor = (id) => (id === 'main' ? CHARS.lead : id === 'user' ? CHARS.you : CHARS.pool.length ? CHARS.pool[hash(id) % CHARS.pool.length] : null);
+function renderCharInfo() {
+  const el = $('#charInfo'); if (!el) return;
+  el.innerHTML = CHARS.n ? `✓ ${CHARS.n} ${esc(L('personnage(s) personnalisé(s) chargé(s)', 'custom character(s) loaded'))}` : `${esc(L('Déposez vos images (PNG) dans ce dossier pour remplacer les personnages :', 'Drop your pixel art (PNG) in this folder to replace the characters:'))}<br><code style="word-break:break-all">${esc(CHARS.dir)}</code><br>${esc(L('lead.png = le chef · you.png = vous · les autres = les sous-agents · nom-talk.png = bouche ouverte', 'lead.png = the lead · you.png = you · others = the sub-agents · name-talk.png = open mouth'))}`;
+  $('#charOpen').style.display = EMBED ? '' : 'none';
+}
+function persona(a) { const p = persona0(a); p.custom = customFor(a.id); return p; }
+function persona0(a) {
   const h = hash(a.id), base = { ...a };
   if (a.id === 'main') return { ...base, name: 'Claude', role: L('Chef', 'Lead'), shirt: '#e8845f', shape: 0, acc: 1, eye: 0, glasses: false, scene: 6, prop: 1, acc2: '#f5c04a', lead: true, vi: 0, gid: 'main' };
   if (a.id === 'user') return { ...base, name: L('Vous', 'You'), role: L('Humain', 'Human'), shirt: '#8a94c9', shape: 1, acc: 2, eye: 1, glasses: false, scene: 7, prop: 1, acc2: '#ff7a6b', vi: 3, gid: 'user' };
@@ -259,16 +256,19 @@ function avatarSVG(p, o, uid = '') {   // uid keeps SVG ids unique per instance:
   const lap = `<rect x="33" y="46" width="34" height="18" rx="2.8" fill="#d3d8e6"/><rect x="33" y="46" width="34" height="18" rx="2.8" fill="url(#${uid}lg)" opacity=".5"/><circle cx="50" cy="55" r="2.3" fill="${c1}"/><rect x="29.5" y="63.4" width="41" height="3" rx="1.5" fill="#aab1c2"/>`;
   const hands = `<circle class="hand l" cx="38" cy="65.6" r="3.1" fill="${c2}"/><circle class="hand r" cx="62" cy="65.6" r="3.1" fill="${c2}"/>`;
   const sparks = star(22, 28, 3) + star(78, 22, 2.6, '#ff9bb8') + star(70, 40, 1.9, '#9be7ff') + star(30, 46, 1.6, '#ffe58a');
+  const custFig = (c, talking) => { const base = 'x="20" y="6" width="60" height="58" preserveAspectRatio="xMidYMax meet"', px = 'image-rendering:pixelated;';
+    return `<image class="cimg" href="${c.idle}" ${base} style="${px}${talking && c.talk ? 'display:none' : ''}"/>` + (c.talk ? `<image class="cimg cimg-talk" href="${c.talk}" ${base} style="${px}${talking ? '' : 'display:none'}"/>` : ''); };
+  const fig = p.custom ? custFig(p.custom, st && o.m > 0) : `${arm('l')}${bodyShape(p.shape, `url(#${gid})`, c2)}${arm('r')}${face}${acc}`;
   return `<svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice"${st ? ' xmlns="http://www.w3.org/2000/svg" width="400" height="300"' : ''}>
     <defs><linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="0" y1="12" x2="0" y2="72"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c}"/></linearGradient>
       <linearGradient id="${uid}dk${p.scene}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sc.desk[0]}"/><stop offset="1" stop-color="${sc.desk[1]}"/></linearGradient>
       <linearGradient id="${uid}lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
     ${sc.svg().replace(/id="(g[a-z]\d)"/g, `id="${uid}$1"`).replace(/url\(#(g[a-z]\d)\)/g, `url(#${uid}$1)`)}
     <g class="fig" style="--d:${d0}s">
-      ${arm('l')}${bodyShape(p.shape, `url(#${gid})`, c2)}${arm('r')}${face}${acc}
+      ${fig}
     </g>
     <rect y="62" width="100" height="13" fill="url(#${uid}dk${p.scene})"/><rect y="62" width="100" height="1.3" fill="#fff" opacity=".38"/><rect y="63.3" width="100" height="2.6" fill="#000" opacity=".1"/>
-    ${prop}${V('laptop', working, lap)}${V('hands', working, hands)}${V('sparks', done, `<g class="sparks">${sparks}</g>`)}
+    ${prop}${p.custom ? '' : V('laptop', working, lap) + V('hands', working, hands)}${V('sparks', done, `<g class="sparks">${sparks}</g>`)}
   </svg>`;
 }
 

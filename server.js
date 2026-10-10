@@ -29,7 +29,8 @@ const HARNESS = /<(system-reminder|browser_instruction|ide_selection|ide_opened_
 // What each tool call looks like on a screen ("d"), plus its id/timestamp so the result can be matched later.
 const toolLabel = (b, ts) => {
   const i = b.input || {};
-  const arg = i.file_path || i.path || i.pattern || i.command || i.url || i.query || i.description || '';
+  const q0 = Array.isArray(i.questions) && i.questions[0] ? i.questions[0] : null, mcp = /^mcp__/.test(b.name) ? b.name.split('__') : null, firstStr = mcp ? Object.values(i).find((v) => typeof v === 'string') : '';
+  const arg = i.file_path || i.notebook_path || i.path || i.pattern || i.command || i.url || i.query || i.skill || (q0 && q0.question) || i.description || firstStr || '';
   const out = { id: b.id, ts, name: b.name, arg: String(arg).slice(0, 90) };
   switch (b.name) {
     case 'Bash': out.d = { kind: 'cmd', text: clip(i.command, 1200), note: clip(i.description, 140) }; break;
@@ -41,15 +42,24 @@ const toolLabel = (b, ts) => {
     case 'TodoWrite': out.d = { kind: 'todo', items: (i.todos || []).slice(0, 20).map((x) => ({ c: clip(x.content, 120), s: x.status })) }; break;
     case 'WebFetch': out.d = { kind: 'web', url: i.url }; break;
     case 'WebSearch': out.d = { kind: 'web', query: i.query }; break;
-    default: out.d = { kind: 'text', text: clip(JSON.stringify(i), 300) };
+    case 'NotebookEdit': out.d = { kind: 'edit', file: i.notebook_path, old: '', new: clip(i.new_source, 500) }; break;
+    case 'AskUserQuestion': out.d = { kind: 'text', what: 'question', text: clip((q0 ? q0.question + '\n' + (q0.options || []).map((o) => '• ' + (o.label || '')).join('\n') : ''), 500) }; break;
+    case 'Skill': out.d = { kind: 'text', what: 'skill', v: i.skill, text: clip(i.skill + (i.args ? ' ' + i.args : ''), 200) }; break;
+    case 'ToolSearch': out.d = { kind: 'text', what: 'toolsearch', text: clip(i.query, 200) }; break;
+    default: out.d = mcp ? { kind: 'text', what: 'mcp', v: (mcp[1] || '') + ' · ' + (mcp.slice(2).join('__') || ''), text: clip(JSON.stringify(i), 400) } : { kind: 'text', text: clip(JSON.stringify(i), 300) };
   }
   return out;
 };
 const resultText = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((x) => x.text || '').join('\n') : '');
-const RESULT_MAX = { Read: 1900, Bash: 1300, Grep: 900, Glob: 800, WebFetch: 800, WebSearch: 800, Edit: 200, MultiEdit: 200, Write: 200 };
+const RESULT_MAX = { AskUserQuestion: 900, Skill: 300, ToolSearch: 500, Read: 1900, Bash: 1300, Grep: 900, Glob: 800, WebFetch: 800, WebSearch: 800, Edit: 200, MultiEdit: 200, Write: 200 };
 const NO_RESULT = new Set(['Agent', 'Task', 'SendMessage', 'TodoWrite']);   // internal bookkeeping, nothing to show
 
+let sessionsMemo = { at: 0, rows: [] };
 function listSessions() {
+  if (Date.now() - sessionsMemo.at < 2000) return sessionsMemo.rows;
+  const out = listSessions0(); sessionsMemo = { at: Date.now(), rows: out }; return out;
+}
+function listSessions0() {
   const rows = [];
   if (!fs.existsSync(ROOT)) return rows;
   for (const proj of fs.readdirSync(ROOT)) {
@@ -66,16 +76,9 @@ function listSessions() {
   }
   rows.sort((a, b) => b.mtime - a.mtime);
   const top = rows.slice(0, 60);
-  for (const r of top) {
-    // cheap title: last ai-title record, else first user text
-    const text = fs.readFileSync(path.join(ROOT, r.proj, r.id + '.jsonl'), 'utf8');
-    const m = [...text.matchAll(/"type":"ai-title","aiTitle":"((?:[^"\\]|\\.)*)"/g)].pop();
-    r.title = m ? JSON.parse('"' + m[1] + '"') : null;
-    if (!r.title) {
-      const u = text.match(/"role":"user","content":"((?:[^"\\]|\\.)*)"/);
-      r.title = u ? JSON.parse('"' + u[1] + '"').slice(0, 80) : r.id;
-    }
-    r.project = r.proj.replace(/^-Users-[^-]+-/, '').replace(/-/g, '/');
+  for (const r of top) {   // titles come from the cached tail read (custom title, then AI title, then first prompt): no whole-file reads
+    let t = null; try { const f = path.join(ROOT, r.proj, r.id + '.jsonl'); t = parseTail(f, fs.statSync(f)).title; } catch {}
+    r.title = t || r.id; r.project = r.proj.replace(/^-Users-[^-]+-/, '').replace(/-/g, '/');
   }
   return top;
 }
@@ -124,7 +127,7 @@ function parseTail(file, st) {
   }
   let title = hit && hit.title, tried = hit && hit.tried;
   if (!title && !tried) {
-    const big = readTail(file, 256 * 1024).text, m = [...big.matchAll(/"type":"ai-title","aiTitle":"((?:[^"\\]|\\.)*)"/g)].pop();
+    const big = readTail(file, 256 * 1024).text, mc = [...big.matchAll(/"type":"custom-title","customTitle":"((?:[^"\\]|\\.)*)"/g)].pop(), m = mc || [...big.matchAll(/"type":"ai-title","aiTitle":"((?:[^"\\]|\\.)*)"/g)].pop();   // a title the person typed wins over the generated one
     if (m) { try { title = JSON.parse('"' + m[1] + '"'); } catch {} }
     if (!title) { const hd = readHead(file, 64 * 1024), u2 = hd.match(/"type":"user"[\s\S]{0,3000}?"type":"text","text":"(?!<)((?:[^"\\]|\\.)*)"/); if (u2) { try { title = JSON.parse('"' + u2[1] + '"').replace(/\s+/g, ' ').slice(0, 90); } catch {} } }
     if (!title) { const u = readHead(file, 64 * 1024).match(/"role":"user","content":"((?:[^"\\]|\\.)*)"/); if (u) { try { title = JSON.parse('"' + u[1] + '"').replace(/\s+/g, ' ').slice(0, 90); } catch {} } }
@@ -217,6 +220,7 @@ function readNew(file, agent) {
 }
 function parseRecord(st, r) {
   const agent = st.agent, ts = Date.parse(r.timestamp) || 0;
+  if (r.type === 'system' && r.subtype === 'compact_boundary') { st.raw.push({ ts, agent, kind: 'compact' }); return; }   // Claude Code compacted the conversation
   if (r.type === 'queue-operation' && typeof r.content === 'string' && r.content.includes('<task-notification>')) {   // how Claude Code reports that a background sub-agent has stopped
     const id = (r.content.match(/<tool-use-id>([^<]+)<\/tool-use-id>/) || [])[1], status = (r.content.match(/<status>([^<]+)<\/status>/) || [])[1];
     if (id && status && status !== 'running') st.raw.push({ ts, agent, kind: 'agentdone', toolId: id });
@@ -227,7 +231,7 @@ function parseRecord(st, r) {
     for (const b of blocks(r)) if (b.type === 'tool_result' && (st.toolName[b.tool_use_id] === 'Agent' || st.toolName[b.tool_use_id] === 'Task') && !(st.bg && st.bg[b.tool_use_id]) && !/^\s*Async agent launched/i.test(resultText(b.content))) st.raw.push({ ts, agent, kind: 'agentdone', toolId: b.tool_use_id });   // a synchronous call: the lead got the sub-agent's answer back, so it has finished (async launches answer immediately and are not a completion)
     for (const b of blocks(r)) if (b.type === 'tool_result' && st.toolName[b.tool_use_id] && !NO_RESULT.has(st.toolName[b.tool_use_id])) {
       const n = st.toolName[b.tool_use_id];
-      items.push({ id: b.tool_use_id, err: !!b.is_error, out: clip(resultText(b.content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trimEnd(), RESULT_MAX[n] || 600) });
+      items.push({ id: b.tool_use_id, err: !!b.is_error, out: clip(resultText(b.content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trimEnd(), RESULT_MAX[n] || (/^mcp__/.test(n) ? 900 : 600)) });
     }
     if (items.length) st.raw.push({ ts, agent, kind: 'results', items });
     if (agent !== 'main') return;   // a sub-agent's first user message is the order, emitted from the parent's side
@@ -294,11 +298,11 @@ function buildTimeline(proj, id) {
   const merged = []; let lastReal = -1;   // consecutive tool calls of one agent become one activity beat; usage events are transparent to that rule
   for (const e of events) {
     const p = lastReal >= 0 ? merged[lastReal] : null;
-    if (e.kind === 'usage' || e.kind === 'finish') { merged.push(e); continue; }
+    if (e.kind === 'usage' || e.kind === 'finish' || e.kind === 'compact') { merged.push(e); continue; }
     if (e.kind === 'tool' && p && p.kind === 'tools' && p.agent === e.agent) p.tools.push(e.tool);
     else { merged.push(e.kind === 'tool' ? { ts: e.ts, agent: e.agent, kind: 'tools', tools: [e.tool] } : e); lastReal = merged.length - 1; }
   }
-  const real = merged.find((e) => e.kind !== 'usage' && e.kind !== 'finish'), first = real ? real.ts : 0, last = merged.length ? merged[merged.length - 1].ts : 0;   // time zero = the first thing said or done
+  const real = merged.find((e) => e.kind !== 'usage' && e.kind !== 'finish' && e.kind !== 'compact'), first = real ? real.ts : 0, last = merged.length ? merged[merged.length - 1].ts : 0;   // time zero = the first thing said or done
   return { id, proj, agents: Object.values(agents), events: merged.map((e) => ({ ...e, t: Math.max(0, e.ts - first) })), durationMs: last - first, recentUntil };
 }
 
@@ -488,7 +492,20 @@ async function ttsStream(text, voice, rate, res) {
   const f = await (job || Promise.resolve(file)); if (!res.headersSent) head(); frame(fs.readFileSync(f).subarray(44)); res.end();
 }
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8', '.mp3': 'audio/mpeg' };
+
+// ---- Custom characters: the person's own pixel art replaces the drawn characters. Plain image files in one folder, nothing else is ever served from it.
+//   lead.png / claude.png → the lead · you.png → the human · any other image → a pool for the sub-agents · name-talk.png → optional open-mouth frame of name.png
+const CHAR_NAME = /^[\w][\w .()\-]{0,78}\.(png|gif|webp|jpe?g)$/i, CHAR_MAX = 300 * 1024, CHAR_TYPES = { png: 'image/png', gif: 'image/gif', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+const charactersDir = () => process.env.AGENT_STANDUP_CHARACTERS || path.join(os.homedir(), '.agent-standup', 'characters');
+function listCharacters() {
+  const dir = charactersDir(); let names = []; try { names = fs.readdirSync(dir); } catch {}
+  const ok = names.filter((f) => CHAR_NAME.test(f)).filter((f) => { try { const st = fs.statSync(path.join(dir, f)); return st.isFile() && st.size <= CHAR_MAX; } catch { return false; } }).slice(0, 80);
+  const stem = (f) => f.replace(/\.[^.]+$/, ''), by = new Map(ok.map((f) => [stem(f).toLowerCase(), f]));
+  const chars = ok.filter((f) => !/-talk$/i.test(stem(f))).map((f) => { const st = stem(f), l = st.toLowerCase();
+    return { stem: st, file: f, talk: by.get(l + '-talk') || null, role: /^(lead|claude)$/.test(l) ? 'lead' : /^(you|human|user)$/.test(l) ? 'you' : 'agent' }; }).sort((a, b) => a.stem.localeCompare(b.stem));
+  return { dir, max: CHAR_MAX, chars };
+}
 let audioOwner = { id: null, seen: 0 };
 function start(port = PORT) {
   return http.createServer((req, res) => {
@@ -541,9 +558,11 @@ function start(port = PORT) {
     if (url.pathname === '/api/kokoro/install' && req.method === 'POST') return json(kokoro.install());
     if (url.pathname === '/api/current') return json(currentSession(url.searchParams.get('proj') || '', url.searchParams.get('id') || '', { proj: url.searchParams.get('curproj') || '', id: url.searchParams.get('cur') || '' }));
     if (url.pathname === '/api/board') return json(boardRows());
+    if (url.pathname === '/api/characters') return json(listCharacters());
     if (url.pathname === '/api/session') {
       const proj = url.searchParams.get('proj') || '', sid = url.searchParams.get('id') || '', SAFE = /^[\w.\-]+$/;
-      if (!SAFE.test(proj) || !SAFE.test(sid) || proj === '..' || sid === '..') { res.writeHead(400); return res.end('bad request'); }
+      if (!SAFE.test(proj) || !SAFE.test(sid) || proj === '..' || sid === '..' || proj.length > 200 || sid.length > 200) { res.writeHead(400); return res.end('bad request'); }
+      if (proj !== '_demo' && !fs.existsSync(path.join(ROOT, proj, sid + '.jsonl'))) return json({ error: 'session not found' }, 404);
       const entry = proj === '_demo' ? { tl: require('./demo.js')() } : timelineEntry(proj, sid), tl = entry.tl;   // built-in fictional session
       const after = url.searchParams.get('after');
       if (after == null) {   // the whole timeline: serialize once per version, send gzip-compressed when the browser allows it (12 MB → ~1.5 MB)
@@ -555,6 +574,12 @@ function start(port = PORT) {
       }
       return json({ id: tl.id, agents: tl.agents, total: tl.events.length, events: tl.events.slice(+after) });
     }
+    if (url.pathname.startsWith('/characters/')) {   // only plain image files of the characters folder, by exact name
+      let f = ''; try { f = decodeURIComponent(url.pathname.slice('/characters/'.length)); } catch {}
+      const dir = charactersDir(), fp = path.join(dir, f);
+      try { if (!CHAR_NAME.test(f) || !fp.startsWith(dir + path.sep) || fs.statSync(fp).size > CHAR_MAX) throw 0; } catch { res.writeHead(404); return res.end('not found'); }
+      res.writeHead(200, { 'content-type': CHAR_TYPES[f.split('.').pop().toLowerCase()] || 'application/octet-stream', 'cache-control': 'no-cache' }); return fs.createReadStream(fp).pipe(res);
+    }
     const file = path.join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname);
     if (!file.startsWith(PUBLIC) || !fs.existsSync(file)) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
@@ -562,7 +587,7 @@ function start(port = PORT) {
   } catch (e) { json({ error: String(e.message || e) }, 500); }
   }).listen(port, '127.0.0.1', () => console.log(`Agent Standup → http://localhost:${port}`));
 }
-module.exports = { start, currentSession, shutdown, findClaude, bundledClaude };
+module.exports = { start, currentSession, shutdown, findClaude, bundledClaude, boardRows, charactersDir, listCharacters };
 if (require.main === module) {
   start().on('error', (e) => {
     console.error(e.code === 'EADDRINUSE' ? `Port ${PORT} is already in use (maybe Agent Standup is already running, e.g. inside VS Code). Try: PORT=4790 node server.js` : String(e));

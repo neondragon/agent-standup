@@ -1,6 +1,6 @@
 # Agent Standup
 
-**See who is waiting on whom, and who is blocked — across all your Claude Code sessions — at zero token cost.** Agent Standup turns the session files Claude Code already writes into a live team call (and a board of every session): it only reads local files, it never calls Claude by default.
+**See who is waiting on whom, and who is blocked — across all your Claude Code sessions — at zero token cost.** Agent Standup turns the session files Claude Code already writes into a live team call (and a board of every session): it only reads local files and never calls Claude unless you turn on French translation or the jokes.
 
 **Your Claude Code session as a live team call.** The lead gives orders, sub-agents join the call, work at their desks, share their screen and report back — with voices, expressions and a view of the real work as it happens.
 
@@ -14,7 +14,7 @@ _A fictional team fixing a slow login page — the built-in demo (⚙ → Source
 
 > Unofficial community project, not affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.
 
-> **This is a fork** of [Atoll92/agent-standup](https://github.com/Atoll92/agent-standup) (1.19.2) that adds natural voices (Kokoro-82M, streamed sentence by sentence), full-length spoken messages, a voice speed slider, subtitles that follow the voice, a screen share that stays up, thinking and typing states, settings that survive a reload, and a meme mode. The additions are listed at the top of the [changelog](CHANGELOG.md). The website, downloads and coffee link are upstream's.
+> **This is a fork** of [Atoll92/agent-standup](https://github.com/Atoll92/agent-standup) (1.22.0) that adds natural voices (Kokoro-82M, streamed sentence by sentence), full-length spoken messages, a voice speed slider, subtitles that follow the voice, a screen share that stays up, thinking and typing states, settings that survive a reload, and a meme mode. The additions are listed at the top of the [changelog](CHANGELOG.md). The website, downloads and coffee link are upstream's.
 
 ## What you get
 
@@ -66,6 +66,36 @@ Sub-agents answer when they get an order ("Running the tests, as usual.", "Grepp
 ## Meme mode
 ⚙ → **🔥 Meme mode**, off by default, intensity 1–11 (default 11). The same call, in a 2010s montage costume: an airhorn and "DEPLOYING ADA" when the lead gives an order, hitmarkers, "+300 XP" and the odd triple airhorn when a sub-agent reports, Impact-font captions slamming in with the loud words of each line, a punch-in zoom on whoever talks, a vine boom (or an "oh my god"), a sad trombone, a red flash and a screen shake when a tool call fails, "YEET" or a sepia "To be continued ➡" when an agent leaves, "WOMBO COMBO" when three talk at once, a record scratch and "THE HUMAN HAS ENTERED THE CHAT" when you type (a real one, from a set of three, when your message cuts a line that was being read), and a full MLG finale (triple airhorn, emoji rain, lens flares, the triangle, sunglasses on the lead) when a long job ends. Crickets over agents that have gone quiet. Nothing changes in what is shown or said; it is a layer on top. Every sound but four is synthesised like the rest of the app (the "oh my god" clip and the three record scratches are small MP3 files in `public/sfx/`, 60 KB together); they go through the same bus as the other effects, so video exports keep them (the visuals are not in exports). Full-screen flashes are capped at three a second and dropped when your system asks for reduced motion. Add `?meme=1` to a link to force it for one load. Turning meme mode on also turns the office ambience on (keyboards clattering while agents work, mouse clicks, the coffee machine); switch it back off in ⚙ → Office ambience for the memes without the office.
 
+## Glance without the panel (VS Code)
+The status bar shows live counts for your workspace (needs you, working, your turn) and turns red when an agent may be waiting for you; hover for the sessions, click to open the call on the most urgent one (`agentStandup.statusBar`).
+
+## Context gauge, highlights, loop watch
+The header shows how full the lead's context is (`ctx 62%`, orange then red, with a warning before auto-compaction); tiles and list rows show it from 50%. In Replay, the **Highlights** bar jumps to the first error, the longest wait, compactions and possible loops. A 🔁 badge marks an agent repeating the exact same call or failing repeatedly. The context window (200k or 1M) is inferred, because transcripts do not state it.
+
+## Works with your tools
+| Where | How |
+|---|---|
+| **VS Code** | Install **Agent Standup** from the Extensions view (Marketplace). |
+| **Cursor, Windsurf, VSCodium…** | Download `agent-standup-<version>.vsix` from the [latest release](https://github.com/Atoll92/agent-standup/releases/latest) and use *Extensions → … → Install from VSIX*. |
+| **Any terminal, no editor** | `npx @double_geste/agent-standup --open` (Node 18+; the package is on [npm](https://www.npmjs.com/package/@double_geste/agent-standup)). Offline alternative: `npx https://github.com/Atoll92/agent-standup/releases/latest/download/agent-standup-cli.tgz --open`. |
+| **A small desktop app (macOS)** | Download `Agent-Standup-<version>-mac-apple-silicon.zip` (or `-mac-intel.zip`) from the release, unzip, move *Agent Standup* to Applications. The app is **not signed with an Apple developer ID**, so the first time: right-click the app → *Open* → *Open* (or run `xattr -dr com.apple.quarantine "/Applications/Agent Standup.app"`). It has a window and an indicator in the menu bar, and notifies you when an agent may need you. |
+| **Claude Code status line** | `npm i -g @double_geste/agent-standup`, then in `~/.claude/settings.json`: `{ "statusLine": { "type": "command", "command": "agent-standup statusline" } }` → shows `⚙2 ✋1` under your prompt. |
+| **tmux** *(not tested here)* | `set -g status-right '#(agent-standup status --here)'` |
+| **Neovim** *(not tested here)* | call `vim.fn.system('agent-standup status --here')` from a timer and show the result in your statusline plugin; `agent-standup status --json` gives machine-readable output. |
+| **JetBrains IDEs** *(not native yet)* | *Settings → Tools → External Tools → +*: program `npx`, arguments `-y @double_geste/agent-standup --open`, working directory `$ProjectFileDir$`. |
+
+Other agent tools than Claude Code (Codex CLI, Gemini CLI, OpenCode…) are researched in [ROADMAP.md](ROADMAP.md): their log formats are mostly undocumented, so no adapter is shipped yet.
+
+## Languages
+Pick one in ⚙ → Language: **English, Français, 繁體中文, 简体中文, Español, Deutsch, Português (Brasil), 日本語**. The interface (menus, chips, tooltips, recap) is translated; VS Code's command titles, setting descriptions and status bar follow VS Code's own display language. English and French are written by hand; the other languages are **AI-drafted and not yet reviewed by native speakers**, so corrections are very welcome: each language is one small JSON file (`public/locales/<code>.json`), see [public/locales/README.md](public/locales/README.md) to fix or add one (`npm run i18n` checks the files). The words the agents say stay in the language of your session (French translation of their lines is optional); the little banter lines and the demo exist in English and French.
+
+## Your own characters
+Replace the drawn characters with your own pixel art. Drop PNG (or GIF/WebP) files, 300 KB at most each, into `~/.agent-standup/characters` (⚙ → Characters shows the folder, and in VS Code *Open folder* opens it; the `agentStandup.charactersPath` setting changes it):
+- `lead.png` (or `claude.png`) is the lead, `you.png` is you, any other image becomes a sub-agent (one per agent, repeated if you have fewer images than agents);
+- `name-talk.png` next to `name.png` is an optional open-mouth frame that shows while the character speaks;
+- 32×32 or 64×64 px, transparent background, facing front, feet at the bottom looks best. The art is shown crisp (no smoothing) on top of the usual scene and desk, and every status, hand and badge still works.
+Press **Reload** in the menu to see changes. A starter pack is in [examples/characters](examples/characters).
+
 ## Agents list
 On wide windows (900 px+), a fixed list sits left of the call: every agent with its role and one status line, **most urgent first** (needs you, stalled, working, waiting, done) and the lead pinned on top. It stays readable with dozens of agents, which a grid of tiles does not. Click a name to put that agent in the spotlight (kept for 25 s even when someone else speaks), double-click for details. Toggle it in ⚙ → Agents list.
 
@@ -100,7 +130,7 @@ In VS Code: Extensions view → search **Agent Standup** → Install. Or: https:
    Or from a terminal: `code --install-extension agent-standup-<version>.vsix` (macOS: run *Shell Command: Install 'code' command in PATH* first if `code` isn't found).
 3. **Developer: Reload Window**, then click the camera icon in the Activity Bar (or run **Agent Standup: Open live call**) and press **Join**.
 
-Direct download of the current version: https://github.com/Atoll92/agent-standup/releases/download/v1.19.2/agent-standup-1.19.2.vsix  
+Direct download of the current version: https://github.com/Atoll92/agent-standup/releases/download/v1.22.0/agent-standup-1.22.0.vsix  
 Or with the GitHub CLI: `gh release download --repo Atoll92/agent-standup --pattern "*.vsix"`, then the `code --install-extension` line above.
 
 ### Option B — build it yourself
@@ -130,6 +160,8 @@ The first click on **Join** is required by browsers to allow sound.
 | Setting | Default | |
 |---|---|---|
 | `agentStandup.port` | `0` | Local port of the server. `0` = a free port is picked automatically for each VS Code window (recommended) |
+| `agentStandup.statusBar` | `true` | Live counts in the VS Code status bar (needs you / working / your turn) for this workspace |
+| `agentStandup.shareUsage` | `false` | Opt-in, anonymous: at most one empty request per day to a 1-pixel file on GitHub, to count active installs (ignored when VS Code telemetry is off) |
 | `agentStandup.claudePath` | _(auto)_ | Full path to the Claude Code executable if it isn't found automatically (needed only for French translation) |
 | `agentStandup.autoOpen` | `false` | Open the call when VS Code starts |
 | `agentStandup.onlyThisWorkspace` | `true` | Follow only sessions started in the open folder (falls back to the newest session if there is none) |
@@ -138,11 +170,11 @@ The first click on **Join** is required by browsers to allow sound.
 
 | | |
 |---|---|
-| **Appel / Call · Arbre / Tree** | tiles or hierarchy |
+| **Appel / Call · Arbre / Tree · Sessions** | tiles, hierarchy, or one card per recent session |
 | **⏸ / ▶** (Space) | pause / resume |
 | **☰** | transcript |
 | **🔊 / 🔇** (M) | mute everything |
-| **⚙** | language · voices · ambience · **office music (station + volume)** · reactions · remove finished agents · **Live ↔ Replay** (and session picker) · recap · export video |
+| **⚙** | language · voices · ambience · **office music (station + volume)** · agents list · little lines & animations · reactions bar · remove finished agents · **Live / Replay / Demo** (and project / session picker) · recap · export video |
 | **T** · **R** · **L** | tree/call · recap · transcript |
 | Esc | close recap / menu |
 
@@ -156,7 +188,7 @@ Turn on **Office music** in ⚙ and pick a station (FIP, Groove, Jazz, Electro, 
 
 If several Agent Standup windows are open on the same machine (sidebar, editor panel, browser tab), only the last one where you pressed **Join / Play / 🔊** plays sound; the others stay silent and show 🔈 (click it to take the sound back). This avoids hearing the same call twice, possibly in two languages. A window that stops answering releases the sound after a few seconds.
 
-## Voices
+## Voice engines (per OS)
 
 Voices are generated on your machine and played identically in the editor and in the browser:
 
@@ -211,7 +243,6 @@ The website counts visits anonymously (a 1-pixel file hosted on GitHub per chann
 - **Two voices at once (e.g. French and English)** — update to ≥ 1.8.1: only one window plays sound now. A line that could not be translated in time is read by an English voice, not by a French voice reading English.
 - **No sound** — press **Join** (or Play) once; check 🔊 isn't muted and *Agent voices* is on in ⚙.
 - **French is read in English / hint about translation** — Agent Standup looks for Claude Code in your `PATH`, the usual install folders (Homebrew, npm, nvm, `~/.local/bin`, Windows `%APPDATA%\npm`) and the copy bundled with the official VS Code *Claude Code* extension. If none is found the app quietly stays in English; set `agentStandup.claudePath`, or run `claude` once in a terminal to sign in. If VS Code itself was started from inside a Claude Code session, restart it normally.
-- **French is read in English** — `claude` CLI not found or not logged in (hint in ⚙); install a French system voice.
 - **Characters or backgrounds look empty** — update to ≥ 1.2.1 (fixed a duplicate SVG id bug).
 - **Terminal output missing for a command** — the call is still running (spinner), or it is an internal call (sub-agent launch / message); outputs are only recorded once a call finishes.
 - **Pill says OFFLINE** — the local server stopped answering (another VS Code window that was serving the port was closed: the extension takes over within a few seconds), or restart `node server.js`.
@@ -225,16 +256,14 @@ The website counts visits anonymously (a 1-pixel file hosted on GitHub per chann
 - Very large sessions (10 MB+ of transcript) take a second or two to load the first time (about 1.9 s for a 12 MB, 168-sub-agent session on a recent Mac); after that updates take milliseconds.
 - Video export records in real time and needs a Chromium-based browser/VS Code.
 
-## Support
-
-This dev was replaced by his own agents. If Agent Standup made your sessions more fun, you can [buy him a coffee](https://www.buymeacoffee.com/bored_dev_and_his_robots) ☕ — there is also a ☕ line in the ⚙ menu and at the end of each recap.
-
 ## License
 
 MIT
 
 ## Support the project / work with me
-Agent Standup is free and MIT licensed. If it saves you time you can [buy the (replaced) dev a coffee](https://www.buymeacoffee.com/bored_dev_and_his_robots). I'm also available for work around AI agents and developer tooling: reach me through my GitHub profile, [Atoll92](https://github.com/Atoll92).
+This dev was replaced by his own agents. If Agent Standup made your sessions more fun, you can [buy him a coffee](https://www.buymeacoffee.com/bored_dev_and_his_robots) ☕ — there is also a ☕ line in the ⚙ menu and at the end of each recap.
+
+Agent Standup is free and MIT licensed. I'm also available for work around AI agents and developer tooling: reach me through my GitHub profile, [Atoll92](https://github.com/Atoll92).
 
 ## Privacy and usage counting
 Agent Standup reads local session files and sends nothing anywhere by default. The only optional network uses are: French translation / jokes (your own Claude login, off unless you turn them on), the FIP radio stream (if you turn it on), the one-time download of natural voices (if you install them), and the **optional usage counter**: if you set `agentStandup.shareUsage` to `true` (off by default, and ignored when VS Code telemetry is off), the extension makes at most one empty request per day to a 1-pixel file in this repository's releases. There is no identifier and no content; GitHub sees your IP like for any download. It lets the maintainer count active installs (`npm run stats`).

@@ -6,10 +6,10 @@
 <title>Agent Standup</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎥%3C/text%3E%3C/svg%3E">
 <style>
-  :root { --bg:#12131a; --panel:#1b1d27; --panel2:#232634; --line:#2a2d3b; --text:#e9eaf0; --dim:#8a8fa3; --accent:#7c9cff; --gold:#f5c04a; --ok:#58d68d; --warn:#f0a020; --red:#ff5a5a; --r:10px }
+  :root { --bg:#12131a; --panel:#1b1d27; --panel2:#232634; --line:#2a2d3b; --text:#e9eaf0; --dim:#9aa0b6; --ease:cubic-bezier(.2,.8,.2,1); --accent:#7c9cff; --gold:#f5c04a; --ok:#58d68d; --warn:#f0a020; --red:#ff5a5a; --r:10px }
   * { box-sizing:border-box }
   html, body { height:100%; margin:0 }
-  body { background:var(--bg); color:var(--text); font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; display:flex; flex-direction:column; overflow:hidden }
+  body { background:var(--bg); color:var(--text); font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"PingFang TC","PingFang SC","Hiragino Sans","Microsoft JhengHei","Microsoft YaHei","Noto Sans CJK TC","Noto Sans CJK SC","Noto Sans CJK JP",sans-serif; display:flex; flex-direction:column; overflow:hidden }
   button, select { font:inherit; color:inherit }
   button { background:none; border:0; cursor:pointer; padding:0 }
   button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px }
@@ -55,15 +55,21 @@
   .rr .st { font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
   .rr.k-working { border-left-color:var(--gold) } .rr.k-working .st { color:var(--gold) } .rr.k-waiting { border-left-color:#8fd3ff } .rr.k-waiting .st { color:#8fd3ff }
   .rr.k-blocked { border-left-color:#ff5252; background:rgba(192,57,43,.28) } .rr.k-blocked .st { color:#fff; font-weight:700 } .rr.k-stalled { border-left-color:#ffb347 } .rr.k-stalled .st { color:#ffb347; font-weight:700 }
-  .rr.k-done { opacity:.6 } .rr.k-done .st { color:var(--ok) } .rr.k-idle .st { color:var(--dim) } .rr.speaking { box-shadow:0 0 0 2px rgba(124,156,255,.5) }
+  .rr.k-done { opacity:.82 } .rr.k-done .st { color:var(--ok) } .rr.k-idle .st { color:var(--dim) } .rr.speaking { box-shadow:0 0 0 2px rgba(124,156,255,.5) }
   #boardv { flex:1; overflow:auto; padding:16px 18px; display:none }
   .bsum { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; font-size:12.5px } .bsum span { padding:3px 10px; border-radius:99px; background:var(--panel2); border:1px solid var(--line) }
   .bgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:10px }
   .bcard { text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:11px 13px; display:flex; flex-direction:column; gap:5px; cursor:pointer }
-  .bcard:hover { border-color:var(--accent) } .bcard.blocked { border-color:#ff5252; box-shadow:0 0 0 2px rgba(255,82,82,.25) } .bcard.working { border-color:rgba(240,160,32,.7) } .bcard.waiting { border-color:rgba(110,190,255,.8) } .bcard.idle { opacity:.62 }
+  .bcard:hover { border-color:var(--accent) } .bcard.blocked { border-color:#ff5252; box-shadow:0 0 0 2px rgba(255,82,82,.25) } .bcard.working { border-color:rgba(240,160,32,.7) } .bcard.waiting { border-color:rgba(110,190,255,.8) } .bcard.idle { opacity:.8 }
   .bcard .bt { font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical } .bcard .bp, .bcard .bm { color:var(--dim); font-size:11.5px }
   .bcard .stc { align-self:flex-start }
   .stc { font-size:11.5px; padding:2px 9px; border-radius:99px; background:rgba(14,15,24,.6); white-space:nowrap } .stc.working { color:var(--gold) } .stc.waiting { color:#8fd3ff } .stc.blocked { color:#fff; background:#c0392b; font-weight:700 } .stc.stalled { color:#1b1d27; background:#ffb347; font-weight:700 } .stc.done, .stc.turn { color:var(--ok) } .stc.idle { color:var(--dim) }
+  .ctxp { font-size:11px; font-weight:600; padding:3px 9px; border-radius:99px; background:var(--panel2); white-space:nowrap; cursor:default } .ctxp.lo, .cx.lo { color:#7ee2a8 } .ctxp.mid, .cx.mid { color:#ffc857 } .ctxp.hi, .cx.hi { color:#fff; background:#c0392b }
+  .cx:empty { display:none } .tag .cx { font-size:10px }
+  #hl { display:none; flex-wrap:wrap; gap:6px; padding:5px 12px; border-top:1px solid var(--line); background:var(--panel) } body.replay #hl.has { display:flex } body.board #hl, body.tree #hl { display:none !important }
+  .hlc { font-size:11.5px; padding:3px 10px; border-radius:99px; background:var(--panel2); border:1px solid var(--line); color:var(--text) } .hlc:hover { border-color:var(--accent) }
+  .tbadge .l { color:#ff9f1c } .tbadge span { font-size:11px } .tbadge .q { color:#b4bcd4 }
+  .ic:active, .btn:active { transform:scale(.96) } .rr, .ic, .bcard { transition:background .15s var(--ease), border-color .15s var(--ease), transform .15s var(--ease) }
   .meet { font-size:11.5px; color:var(--dim); white-space:nowrap; display:flex; gap:8px; align-items:center } .meet i { width:8px; height:8px; border-radius:50%; background:#ff4d4d; animation:pulse 1.6s infinite }
   @media (max-width:760px) { .meet { display:none } }
   #reactBar { display:none; position:absolute; right:12px; bottom:98px; z-index:5; gap:4px; padding:4px 6px; border-radius:99px; background:rgba(20,22,32,.82); border:1px solid var(--line); backdrop-filter:blur(8px); opacity:.55; transition:opacity .2s }
@@ -73,7 +79,7 @@
   .tile.oops { animation:oops .5s } @keyframes oops { 20% { transform:translateX(-5px) rotate(-1.2deg); box-shadow:0 0 0 3px rgba(255,82,82,.6) } 50% { transform:translateX(5px) rotate(1.2deg) } 80% { transform:translateX(-2px) } }
   .confetti { position:absolute; top:-12px; width:8px; height:12px; z-index:7; pointer-events:none; animation:fall 2.4s ease-in forwards } @keyframes fall { to { transform:translateY(105vh) rotate(720deg); opacity:.9 } }
   .prop { position:absolute; top:26px; left:8px; font-size:26px; z-index:3; pointer-events:none; filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)) } .prop:empty { display:none }
-  .prop.blocked { animation:wave .7s ease-in-out infinite; transform-origin:70% 90% } @keyframes wave { 50% { transform:rotate(-24deg) translateY(-3px) } }
+  .prop.blocked { animation:handup .7s ease-in-out infinite; transform-origin:70% 90% } @keyframes handup { 50% { transform:rotate(-24deg) translateY(-3px) } }
   .prop.stalled { animation:shake .5s ease-in-out infinite } @keyframes shake { 25% { transform:translateX(-3px) } 75% { transform:translateX(3px) } }
   .prop.waiting { animation:tick 2.4s ease-in-out infinite } @keyframes tick { 50% { transform:rotate(180deg) } }
   .prop.cheer { animation:cheer 1.1s ease-out both } @keyframes cheer { 0% { transform:scale(.3) translateY(10px); opacity:0 } 40% { transform:scale(1.25); opacity:1 } 100% { transform:translateY(-14px); opacity:0 } }
@@ -126,13 +132,13 @@
   .tile svg { width:100%; height:100%; display:block }
   .tile.lead { order:-2 } .tile.focus { order:-3; grid-column:span var(--fcols,2); grid-row:span var(--fr,2) } .tile.speaking { border-color:var(--accent); box-shadow:0 0 0 3px rgba(124,156,255,.4), 0 10px 30px rgba(0,0,0,.55) }
   .tile.lead.speaking { border-color:var(--gold); box-shadow:0 0 0 3px rgba(245,192,74,.4), 0 10px 30px rgba(0,0,0,.55) }
-  body.presenting .tile.focus { order:0; grid-column:auto; grid-row:auto } .tile.focus .bubble { font-size:16px }
-  .tile.working { border-color:rgba(240,160,32,.8) } .tile.done { opacity:.78 }
+  body.presenting .tile.focus { order:0; grid-column:auto; grid-row:auto } .tile.focus .bubble { font-size:16px; max-width:72% }
+  .tile.working { border-color:rgba(240,160,32,.8) } .tile.done svg { filter:saturate(.75) brightness(.93) }
   .tile.pop { animation:pop .6s } @keyframes pop { 35% { transform:scale(1.07); box-shadow:0 0 0 6px rgba(88,214,141,.5) } }
   .tag { position:absolute; left:6px; bottom:6px; right:6px; display:flex; gap:5px; pointer-events:none }
-  .tag b, .tag span { background:rgba(14,15,24,.55); backdrop-filter:blur(6px); padding:2px 9px; border-radius:99px; font-size:11.5px; white-space:nowrap }
-  .tag span { color:#cfd2de; font-size:10.5px; overflow:hidden; text-overflow:ellipsis; min-width:0 }
-  .status { position:absolute; top:6px; right:6px; font-size:10.5px; padding:2px 9px; border-radius:99px; background:rgba(14,15,24,.6); backdrop-filter:blur(6px) }
+  .tag b, .tag span { background:rgba(14,15,24,.78); backdrop-filter:blur(6px); padding:2px 9px; border-radius:99px; font-size:11.5px; white-space:nowrap }
+  .tag span { color:#e3e6f0; font-size:10.5px; overflow:hidden; text-overflow:ellipsis; min-width:0 }
+  .status { position:absolute; top:6px; right:6px; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:99px; background:rgba(14,15,24,.8); backdrop-filter:blur(6px) }
   .status.working { color:var(--gold) } .status.done { color:var(--ok) }
   .status.waiting { color:#8fd3ff } .status.blocked { color:#fff; background:#c0392b; font-weight:700 } .status.stalled { color:#1b1d27; background:#ffb347; font-weight:700 }
   .tile.waiting { border-color:rgba(110,190,255,.85) } .tile.blocked { border-color:#ff5252 !important; animation:slowp 1.2s ease-in-out infinite } .tile.stalled { border-color:#ffb347 !important }
@@ -176,7 +182,8 @@
   .drift { animation:drift 24s ease-in-out infinite alternate } @keyframes drift { to { transform:translateX(9px) } }
   .steam { animation:steam 2.6s ease-in-out infinite } @keyframes steam { 50% { transform:translateY(-1.4px); opacity:.25 } }
   .tile.done .sparks path { animation:tw 1.6s ease-in-out infinite }
-  @media (prefers-reduced-motion:reduce) { .tile *, .tile { animation:none !important } }
+  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important } .confetti, .fly { display:none !important } }
+  .tile:focus-visible, .rr:focus-visible, .bcard:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
   .fly { position:fixed; left:0; top:0; font-size:28px; z-index:8; pointer-events:none; filter:drop-shadow(0 3px 4px rgba(0,0,0,.5)) }
 
   /* ---------- overlays ---------- */
@@ -230,7 +237,7 @@
 <body>
 <header>
   <div class="brand"><div class="logo">🎥</div><div><b>Agent Standup</b><small id="subtitle"></small></div></div>
-  <span id="pill">REPLAY</span><button id="tok" class="tok" style="display:none"></button><span id="board" class="board" aria-live="polite"></span><span id="meet" class="meet"></span>
+  <span id="pill">REPLAY</span><button id="tok" class="tok" style="display:none"></button><button id="ctxp" class="ctxp" style="display:none"></button><span id="board" class="board" aria-live="polite"></span><span id="meet" class="meet"></span>
   <div class="sp"></div>
   <div class="seg" id="viewSeg"><button data-v="call" class="on" data-fr="Appel" data-en="Call">Appel</button><button data-v="tree" data-fr="Arbre" data-en="Tree">Arbre</button><button data-v="board" data-fr="Sessions" data-en="Sessions">Sessions</button></div>
   <button class="ic" id="bPlay" title="Pause / Lecture (espace)">⏸</button>
@@ -242,7 +249,7 @@
 
 <div id="menu">
   <h4 data-fr="Langue" data-en="Language">Langue</h4>
-  <div class="box"><div class="seg" style="width:100%" id="langSeg"><button data-l="fr" style="flex:1">Français</button><button data-l="en" style="flex:1">English</button></div></div>
+  <div class="box"><select id="langSel" aria-label="Language"></select></div>
   <div class="hint" id="trHint" style="display:none"></div>
   <h4 data-fr="Son" data-en="Sound">Son</h4>
   <button class="mi" data-t="voice"><span data-fr="Voix des agents" data-en="Agent voices">Voix des agents</span><i class="sw"></i></button>
@@ -268,6 +275,8 @@
   <div class="box"><div class="seg" style="width:100%" id="modeSeg"><button data-m="live" style="flex:1">Live</button><button data-m="replay" style="flex:1">Replay</button><button data-m="demo" style="flex:1">Demo</button></div>
     <select id="liveProj" style="display:none;margin-top:6px" title="Project to follow"></select>
     <select id="sessions" style="display:none"></select></div>
+  <h4 data-fr="Personnages" data-en="Characters">Personnages</h4>
+  <div class="box"><div id="charInfo" class="dim" style="font-size:11.5px;line-height:1.5"></div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn" id="charReload" data-fr="Recharger" data-en="Reload">Recharger</button><button class="btn" id="charOpen" style="display:none" data-fr="Ouvrir le dossier" data-en="Open folder">Ouvrir le dossier</button></div></div>
   <h4 data-fr="Outils" data-en="Tools">Outils</h4>
   <button class="mi" id="mCoffee" style="display:none"><span id="mCoffeeT"></span></button>
   <button class="mi" id="mRecap"><span data-fr="📋 Récapitulatif" data-en="📋 Recap">📋 Récapitulatif</span></button>
@@ -282,8 +291,9 @@
     <div id="present"><div class="pwin term"><div class="pbar"><i class="r"></i><i class="y"></i><i class="g"></i><span id="ptitle"></span><span id="pbadge"></span></div><div id="pbody"></div><div id="pstat"></div></div><div id="ptodo" style="display:none"></div><div id="pcap"></div><div id="pcam"></div></div>
     <div id="stage"></div><div id="tree"></div><div id="boardv"></div>
     <div id="reactBar" aria-label="Reactions"><button data-e="👍">👍</button><button data-e="👏">👏</button><button data-e="☕">☕</button><button data-e="🔥">🔥</button><button data-e="🙌">🙌</button></div>
+    <div id="hl"></div>
     <canvas id="gantt" height="90"></canvas>
-    <div id="toasts"></div>
+    <div id="toasts" role="status" aria-live="polite"></div>
     <div id="empty"><h2 id="eT"></h2><p id="eP"></p><button class="cta" id="eDemo"></button></div>
     <div id="gate"><h2 id="gT"></h2><p id="gP"></p><button class="cta" id="gB"></button><button class="glink" id="gCoffee" style="display:none"></button></div>
     <div id="detail"><div class="hd"><b id="dname"></b><button class="ic" id="dclose">✕</button></div><div id="dbody"></div></div>
@@ -311,6 +321,7 @@ const SUPPORT = { url: 'https://www.buymeacoffee.com/bored_dev_and_his_robots' }
 const CID = Math.random().toString(36).slice(2, 12);   // identifies this window for the audio-ownership handshake
 const Q = new URLSearchParams(location.search);
 const EMBED = Q.get('embed') === '1' || window.parent !== window;
+if (Q.get('pin')) S.pin = Q.get('pin');
 
 let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, kokoroDtype: 'q4f16', userVoice: '', readLen: 'full', roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, meme: false, memeLevel: 11, memeVol: 0.8, view: 'call' };
 let localPrefs = {}; try { localPrefs = JSON.parse(localStorage.getItem('cc.prefs') || '{}'); } catch {}
@@ -323,8 +334,18 @@ if (prefs.meme && !prefs.office && !prefs.officeChosen) prefs.office = true;   /
 let prefsT = 0;
 const savePrefs = () => { try { localStorage.setItem('cc.prefs', JSON.stringify(prefs)); } catch {} clearTimeout(prefsT); prefsT = setTimeout(() => fetch('/api/prefs', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(prefs), keepalive: true }).catch(() => {}), 250); };   // sliders fire a lot: one write per burst
 if (!(savedPrefs && typeof savedPrefs === 'object') && Object.keys(localPrefs).length) savePrefs();   // first run with a server store: carry over what this origin remembered
+// Languages: French and English live in the code as pairs L(french, english); every other language is a catalogue public/locales/<code>.json mapping the English text to its translation.
+// A missing string falls back to English, so a half-translated language still works. See public/locales/README.md to add one.
+const LANGS = [['en', 'English', 'en'], ['fr', 'Français', 'fr'], ['zh-TW', '繁體中文', 'zh-Hant-TW'], ['zh-CN', '简体中文', 'zh-Hans-CN'], ['es', 'Español', 'es'], ['de', 'Deutsch', 'de'], ['pt-BR', 'Português (Brasil)', 'pt-BR'], ['ja', '日本語', 'ja']];
+let LOC = {};
 const FR = () => prefs.lang === 'fr';
-const L = (fr, en) => (FR() ? fr : en);
+const tr = (en) => (prefs.lang === 'en' || prefs.lang === 'fr' ? en : LOC[en] || en);
+const L = (fr, en) => (FR() ? fr : tr(en));
+async function loadLocale(code) { LOC = {}; if (code === 'en' || code === 'fr') return; try { const r = await fetch('/locales/' + encodeURIComponent(code) + '.json'); if (r.ok) LOC = await r.json(); } catch {} }
+async function setLang(code, save) {
+  if (!LANGS.some((l) => l[0] === code)) code = 'en'; prefs.lang = code; await loadLocale(code); if (save) { prefs.langChosen = true; savePrefs(); }
+  if (FR()) fetch('/api/warm').catch(() => {}); AUD.stopAll(); synth && synth.cancel(); applyLang(); if (FR()) prefetchTr(S.idx);
+}
 
 // =====================================================================
 //  cast: soft mascots at their desks, in front of illustrated rooms
@@ -339,7 +360,26 @@ function uniqueName(id, h) {
 const PAL = ['#ff7a6b','#ffb347','#ffd84a','#4fd1a5','#4cc3ff','#7c8cff','#b583ff','#ff7eb6'];
 const hexRGB = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const mix = (a, b, t) => { const A = hexRGB(a), B = hexRGB(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
-function persona(a) {
+// ---- custom characters: the person's own pixel art (folder served by /api/characters) replaces the drawn figure, scene and desk stay ----
+let CHARS = { lead: null, you: null, pool: [], dir: '', n: 0 };
+const toData = (url) => fetch(url).then((r) => r.blob()).then((b) => new Promise((res) => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b); }));
+async function loadChars() {
+  const next = { lead: null, you: null, pool: [], dir: '', n: 0 };
+  try {
+    const d = await (await fetch('/api/characters')).json(); next.dir = d.dir || '';
+    for (const c of d.chars || []) { try { const e = { name: c.stem, idle: await toData('/characters/' + encodeURIComponent(c.file)), talk: c.talk ? await toData('/characters/' + encodeURIComponent(c.talk)) : null };
+      if (c.role === 'lead') next.lead = e; else if (c.role === 'you') next.you = e; else next.pool.push(e); next.n++; } catch {} }
+  } catch {}
+  CHARS = next;
+}
+const customFor = (id) => (id === 'main' ? CHARS.lead : id === 'user' ? CHARS.you : CHARS.pool.length ? CHARS.pool[hash(id) % CHARS.pool.length] : null);
+function renderCharInfo() {
+  const el = $('#charInfo'); if (!el) return;
+  el.innerHTML = CHARS.n ? `✓ ${CHARS.n} ${esc(L('personnage(s) personnalisé(s) chargé(s)', 'custom character(s) loaded'))}` : `${esc(L('Déposez vos images (PNG) dans ce dossier pour remplacer les personnages :', 'Drop your pixel art (PNG) in this folder to replace the characters:'))}<br><code style="word-break:break-all">${esc(CHARS.dir)}</code><br>${esc(L('lead.png = le chef · you.png = vous · les autres = les sous-agents · nom-talk.png = bouche ouverte', 'lead.png = the lead · you.png = you · others = the sub-agents · name-talk.png = open mouth'))}`;
+  $('#charOpen').style.display = EMBED ? '' : 'none';
+}
+function persona(a) { const p = persona0(a); p.custom = customFor(a.id); return p; }
+function persona0(a) {
   const h = hash(a.id), base = { ...a };
   if (a.id === 'main') return { ...base, name: 'Claude', role: L('Chef', 'Lead'), shirt: '#e8845f', shape: 0, acc: 1, eye: 0, glasses: false, scene: 6, prop: 1, acc2: '#f5c04a', lead: true, vi: 0, gid: 'main' };
   if (a.id === 'user') return { ...base, name: L('Vous', 'You'), role: L('Humain', 'Human'), shirt: '#8a94c9', shape: 1, acc: 2, eye: 1, glasses: false, scene: 7, prop: 1, acc2: '#ff7a6b', vi: 3, gid: 'user' };
@@ -430,16 +470,19 @@ function avatarSVG(p, o, uid = '') {   // uid keeps SVG ids unique per instance:
   const lap = `<rect x="33" y="46" width="34" height="18" rx="2.8" fill="#d3d8e6"/><rect x="33" y="46" width="34" height="18" rx="2.8" fill="url(#${uid}lg)" opacity=".5"/><circle cx="50" cy="55" r="2.3" fill="${c1}"/><rect x="29.5" y="63.4" width="41" height="3" rx="1.5" fill="#aab1c2"/>`;
   const hands = `<circle class="hand l" cx="38" cy="65.6" r="3.1" fill="${c2}"/><circle class="hand r" cx="62" cy="65.6" r="3.1" fill="${c2}"/>`;
   const sparks = star(22, 28, 3) + star(78, 22, 2.6, '#ff9bb8') + star(70, 40, 1.9, '#9be7ff') + star(30, 46, 1.6, '#ffe58a');
+  const custFig = (c, talking) => { const base = 'x="20" y="6" width="60" height="58" preserveAspectRatio="xMidYMax meet"', px = 'image-rendering:pixelated;';
+    return `<image class="cimg" href="${c.idle}" ${base} style="${px}${talking && c.talk ? 'display:none' : ''}"/>` + (c.talk ? `<image class="cimg cimg-talk" href="${c.talk}" ${base} style="${px}${talking ? '' : 'display:none'}"/>` : ''); };
+  const fig = p.custom ? custFig(p.custom, st && o.m > 0) : `${arm('l')}${bodyShape(p.shape, `url(#${gid})`, c2)}${arm('r')}${face}${acc}`;
   return `<svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice"${st ? ' xmlns="http://www.w3.org/2000/svg" width="400" height="300"' : ''}>
     <defs><linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="0" y1="12" x2="0" y2="72"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c}"/></linearGradient>
       <linearGradient id="${uid}dk${p.scene}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sc.desk[0]}"/><stop offset="1" stop-color="${sc.desk[1]}"/></linearGradient>
       <linearGradient id="${uid}lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
     ${sc.svg().replace(/id="(g[a-z]\d)"/g, `id="${uid}$1"`).replace(/url\(#(g[a-z]\d)\)/g, `url(#${uid}$1)`)}
     <g class="fig" style="--d:${d0}s">
-      ${arm('l')}${bodyShape(p.shape, `url(#${gid})`, c2)}${arm('r')}${face}${acc}
+      ${fig}
     </g>
     <rect y="62" width="100" height="13" fill="url(#${uid}dk${p.scene})"/><rect y="62" width="100" height="1.3" fill="#fff" opacity=".38"/><rect y="63.3" width="100" height="2.6" fill="#000" opacity=".1"/>
-    ${prop}${V('laptop', working, lap)}${V('hands', working, hands)}${V('sparks', done, `<g class="sparks">${sparks}</g>`)}
+    ${prop}${p.custom ? '' : V('laptop', working, lap) + V('hands', working, hands)}${V('sparks', done, `<g class="sparks">${sparks}</g>`)}
   </svg>`;
 }
 
@@ -648,7 +691,7 @@ const OFFICE = {
   },
   start() { if (!this.timer) this.timer = setInterval(() => this.tick(), 60); },
 };
-const L10 = (fr, en) => (prefs.lang === 'fr' ? fr : en);
+const L10 = (fr, en) => L(fr, en);
 const STATIONS = [['fip', 'FIP', 'fip'], ['groove', 'FIP Groove', 'fipgroove'], ['jazz', 'FIP Jazz', 'fipjazz'], ['electro', 'FIP Electro', 'fipelectro'], ['reggae', 'FIP Reggae', 'fipreggae'], ['rock', 'FIP Rock', 'fiprock'], ['new', 'FIP Nouveautés', 'fipnouveautes'], ['pop', 'FIP Pop', 'fippop']]
   .map(([id, name, slug]) => ({ id, name, url: `https://icecast.radiofrance.fr/${slug}-midfi.mp3` }));
 const RADIO = {   // live web radio through WebAudio (so it can be faded when agents talk)
@@ -907,8 +950,8 @@ async function speakLine(text, p, primary, token, fr = FR()) {
 //  rendering
 // =====================================================================
 function addTile(p) {
-  const d = document.createElement('div'); d.className = 'tile' + (p.lead ? ' lead' : ''); d.id = 't-' + p.id; d.style.display = 'none'; d.onclick = () => openDetail(p.id);
-  d.innerHTML = `${avatarSVG(p, undefined, 't' + p.gid + '_')}<div class="bubble"></div><div class="status"></div><div class="prop"></div><div class="think"><i></i><i></i><i></i></div><div class="thought"></div><div class="ticker"></div><div class="tbadge"></div><div class="tag"><b>${esc(p.name)}</b><span>${esc(p.role)}</span><span class="tk"></span></div>`;
+  const d = document.createElement('div'); d.className = 'tile' + (p.lead ? ' lead' : ''); d.id = 't-' + p.id; d.tabIndex = 0; d.setAttribute('role', 'button'); d.setAttribute('aria-label', p.name + ' — ' + p.role); d.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(p.id); } }; d.style.display = 'none'; d.onclick = () => openDetail(p.id);
+  d.innerHTML = `${avatarSVG(p, undefined, 't' + p.gid + '_')}<div class="bubble"></div><div class="status"></div><div class="prop"></div><div class="think"><i></i><i></i><i></i></div><div class="thought"></div><div class="ticker"></div><div class="tbadge"></div><div class="tag"><b>${esc(p.name)}</b><span>${esc(p.role)}</span><span class="tk"></span><span class="cx"></span></div>`;
   $('#stage').appendChild(d);
 }
 function buildStage() { camRestore(); $('#stage').innerHTML = ''; Object.values(S.agents).forEach(addTile); }
@@ -934,7 +977,7 @@ function renderLog(full) {
   if (full || S.logTo < from || S.logTo > S.events.length) { log.innerHTML = ''; S.logTo = from; }
   const html = [];
   for (let i = S.logTo; i < S.events.length; i++) {
-    if (S.events[i].kind === 'results' || S.events[i].kind === 'usage' || S.events[i].kind === 'finish') continue;
+    if (S.events[i].kind === 'results' || S.events[i].kind === 'usage' || S.events[i].kind === 'finish' || S.events[i].kind === 'compact') continue;
     const e = S.events[i], arrow = e.to ? ` <span class="arrow">→</span> <span class="who">${esc(nameOf(e.to))}</span>` : '';
     const body = e.kind === 'tools' ? e.tools.map((t) => t.name).join(', ') : spoken(e), k = { order: L('tâche', 'task'), report: L('rapport', 'report'), say: '', user: L('brief', 'brief'), tools: L('outils', 'tools') }[e.kind];
     html.push(`<div class="row ${e.kind}" data-i="${i}"><span class="who">${esc(nameOf(e.agent))}</span>${arrow} <span class="k">${k}</span><div class="txt">${esc(body)}</div></div>`);
@@ -963,7 +1006,7 @@ const applyStatus = (ev) => {
   if (ev.kind === 'report') { if (S.waitOn[ev.to]) S.waitOn[ev.to].delete(ev.agent); S.status[ev.agent] = 'done'; S.doneAt[ev.agent] = S.clock; delete S.run[ev.agent]; }
 };
 function recomputeStatus(upTo) {
-  S.term = {}; S.todos = {}; S.run = {}; S.act = {}; S.usage = {}; S.errs = {}; S.lastAct = {}; S.waitOn = {}; S.orderTs = {}; S.prevState = {}; S.lastTool = {}; S.mainBusyAt = 0; S.recomputing = true; document.querySelectorAll('.tile').forEach((t) => { clearTimeout(t._byeT); t.classList.remove('bye'); }); hidePresent();
+  S.term = {}; S.todos = {}; S.run = {}; S.act = {}; S.usage = {}; S.errs = {}; S.lastAct = {}; S.waitOn = {}; S.orderTs = {}; S.prevState = {}; S.lastTool = {}; S.mainBusyAt = 0; S.ctx = {}; S.model = {}; S.compacts = {}; S.ctxWarned = {}; S.rep = {}; S.loops = {}; S.recomputing = true; document.querySelectorAll('.tile').forEach((t) => { clearTimeout(t._byeT); t.classList.remove('bye'); }); hidePresent();
   S.status = {}; S.tc = {}; S.doneAt = {}; S.gone.clear(); S.leaving.clear(); document.querySelectorAll('.tile.vanishing').forEach((t) => t.classList.remove('vanishing')); const doneIdx = {}; document.querySelectorAll('.ticker').forEach((x) => { x.classList.remove('on'); x.innerHTML = ''; });
   for (let i = 0; i < upTo; i++) {
     const e = S.events[i]; applyStatus(e); tally(e); if (e.kind === 'tools') S.tc[e.agent] = (S.tc[e.agent] || 0) + e.tools.length;
@@ -984,17 +1027,39 @@ function syncUI() {
 
 // ---------- tool ticker, shared screen, flying messages ----------
 // ---------- what each agent is doing: tool calls with their real outputs ----------
-S.term = {}; S.todos = {}; S.run = {}; S.act = {}; S.usage = {}; S.errs = {}; S.lastAct = {}; S.waitOn = {}; S.orderTs = {}; S.prevState = {}; S.present = null; S.camFor = null; let presentTimer = null;
+S.term = {}; S.todos = {}; S.run = {}; S.act = {}; S.usage = {}; S.errs = {}; S.lastAct = {}; S.waitOn = {}; S.orderTs = {}; S.prevState = {}; S.ctx = {}; S.model = {}; S.compacts = {}; S.ctxWarned = {}; S.rep = {}; S.loops = {}; S.present = null; S.camFor = null; let presentTimer = null;
 const later = (k, fn, ms = 160) => { later.p = later.p || {}; if (later.p[k]) return; later.p[k] = setTimeout(() => { later.p[k] = 0; fn(); }, ms); };   // coalesce bursts of repaints
 const fmtTok = (n) => (n < 1000 ? String(n) : n < 1e6 ? (n / 1000).toFixed(n < 1e4 ? 1 : 0) + 'k' : (n / 1e6).toFixed(n < 1e7 ? 2 : 1) + 'M');
 const tokTotal = (u) => (u ? u.i + u.o + u.w : 0);   // headline = input + output + cache writes; cache reads are cheap and shown separately
+// A loop is the same call repeated 3 times in a row, or 4 failures in a row. Polling and screenshot tools are legitimate repeaters and are ignored.
+const LOOP_SKIP = /^(Monitor|TodoWrite|ToolSearch|Skill|Read|mcp__Claude_Browser__(computer|wait|screenshot)|mcp__terminal__read_terminal)$/, POLLY = /\b(sleep|watch|tail -f|gh run|status|poll)\b/;
+function loopStep(R, ev) {   // R: per-agent repetition state; returns a detection {kind,n,tool} or null
+  const a = ev.agent, st = (R[a] = R[a] || { key: '', n: 0, e: 0 });
+  if (ev.kind === 'tools') { for (const t of ev.tools) { const key = t.name + '|' + (t.d ? JSON.stringify(t.d) : (t.arg || ''));   // the whole call, not just the file name: three different edits of one file are not a loop
+     if (LOOP_SKIP.test(t.name) || (t.name === 'Bash' && POLLY.test(t.arg || ''))) { st.key = ''; st.n = 0; continue; } if (key === st.key) st.n++; else { st.key = key; st.n = 1; } if (st.n >= 3) return { kind: 'calls', n: st.n, tool: t.name }; } }
+  else if (ev.kind === 'results') { if (ev.items.some((it) => it.err)) st.e++; else st.e = 0; if (st.e >= 4) return { kind: 'errors', n: st.e }; }   // one batch of failures counts once
+  return null;
+}
+const WIN1M = /(opus-4-[78]|opus-5|sonnet-5|fable-5)/;
+function ctxWin(model, ctx) { const base = WIN1M.test(model || '') ? 1e6 : 2e5; return ctx > base ? 1e6 : base; }   // the transcript does not say which window is in use: infer it, a bigger observed context proves the 1M window
 function tally(ev) {   // numbers that pile up over a session: token usage, errors, last sign of life
-  if (ev.kind === 'usage') { const u = (S.usage[ev.agent] = S.usage[ev.agent] || { i: 0, o: 0, r: 0, w: 0 }); u.i += ev.u.i; u.o += ev.u.o; u.r += ev.u.r; u.w += ev.u.w; later('tok', renderTokens, 300); }
+  if (ev.kind === 'compact') { S.compacts[ev.agent] = (S.compacts[ev.agent] || 0) + 1; delete S.ctxWarned[ev.agent]; }
+  const det = loopStep(S.rep, ev); if (det) { S.loops[ev.agent] = det; later('badges', renderBadges, 300); } else if (S.loops[ev.agent] && (ev.kind === 'results' ? ev.items.every((it) => !it.err) : (ev.kind === 'tools' && S.rep[ev.agent].n < 2))) { delete S.loops[ev.agent]; later('badges', renderBadges, 300); }
+  if (ev.kind === 'usage') { const c = ev.u.i + ev.u.r + ev.u.w; if (c > 0 && ev.model !== '<synthetic>') { S.ctx[ev.agent] = c; S.model[ev.agent] = ev.model; later('tok', renderCtx, 300); } const u = (S.usage[ev.agent] = S.usage[ev.agent] || { i: 0, o: 0, r: 0, w: 0 }); u.i += ev.u.i; u.o += ev.u.o; u.r += ev.u.r; u.w += ev.u.w; later('tok', renderTokens, 300); }
   else if (ev.kind === 'results') ev.items.forEach((it) => { if (it.err) { S.errs[ev.agent] = (S.errs[ev.agent] || 0) + 1; later('badges', renderBadges, 300); oops(ev.agent); } });
   else if (ev.kind === 'tools' || ev.kind === 'say') S.lastAct[ev.agent] = ev.ts;
 }
 const tokTip = (u) => `${L('Jetons enregistrés par Claude Code (comptés une fois par message, ce n’est pas une facture)', 'Tokens recorded by Claude Code (counted once per message, not a bill)')}\n${L('entrée', 'input')} ${fmtTok(u.i)} · ${L('sortie', 'output')} ${fmtTok(u.o)} · ${L('écriture cache', 'cache write')} ${fmtTok(u.w)} · ${L('lecture cache', 'cache read')} ${fmtTok(u.r)}`;
+const ctxInfo = (id) => { const c = S.ctx[id]; if (!c) return null; const w = ctxWin(S.model[id], c), p = Math.round((c / w) * 100); return { c, w, p, lvl: p >= 88 ? 'hi' : p >= 70 ? 'mid' : 'lo' }; };
+function renderCtx() {   // "context N% full": per agent chip (from 50%), a header chip for the lead, and one warning before auto-compaction
+  for (const id in S.agents) { const t = $('#t-' + id); if (!t) continue; const el = t.querySelector('.cx'), x = ctxInfo(id);
+    if (el) { if (x && x.p >= 50) { el.textContent = `ctx ${x.p}%`; el.className = 'cx ' + x.lvl; el.title = `${L('Contexte', 'Context')}: ${fmtTok(x.c)} / ${fmtTok(x.w)}`; } else { el.textContent = ''; el.className = 'cx'; } }
+    if (x && x.p >= 85 && !S.ctxWarned[id] && S.live && S.playing) { S.ctxWarned[id] = 1; toast(`${nameOf(id)}: ${L('contexte plein à ', 'context ')}${x.p}%${L(' — compactage proche', ' full — compaction soon')} 🗜`); if (prefs.notify) AUD.alert(); }
+    else if (x && x.p < 60) delete S.ctxWarned[id]; }
+  const lead = ctxInfo('main'), cp = $('#ctxp'); if (lead) { cp.style.display = ''; cp.textContent = `ctx ${lead.p}%`; cp.className = 'ctxp ' + lead.lvl; cp.title = `${L('Contexte du chef', 'Lead context')}: ${fmtTok(lead.c)} / ${fmtTok(lead.w)}${S.compacts.main ? ' · ' + S.compacts.main + '×🗜' : ''}`; } else cp.style.display = 'none';
+}
 function renderTokens() {
+  renderCtx();
   const all = { i: 0, o: 0, r: 0, w: 0 }; for (const id in S.usage) for (const k in all) all[k] += S.usage[id][k];
   const b = $('#tok'), tot = tokTotal(all); b.style.display = tot ? '' : 'none';
   if (tot) { b.textContent = `⚡ ${fmtTok(tot)} ${L('jetons', 'tokens')}`; b.title = tokTip(all); }
@@ -1057,17 +1122,19 @@ const RORDER = { blocked: 0, stalled: 1, working: 2, waiting: 3, idle: 4, done: 
 function paintRoster(ros) {   // a fixed list beside the call: who is doing what, urgent first, readable even with dozens of agents
   const box = $('#roster'); if (!box || !document.body.classList.contains('rost')) return;
   ros.sort((a, b) => (a.p.id === 'main' ? -1 : b.p.id === 'main' ? 1 : (RORDER[a.st.k] - RORDER[b.st.k]) || (S.lastAct[b.p.id] || 0) - (S.lastAct[a.p.id] || 0)));
-  const rows = ros.slice(0, 60).map(({ p, st }) => `<div class="rr k-${st.k}${S.focus === p.id ? ' sel' : ''}${S.speakers.has(p.id) ? ' speaking' : ''}" data-id="${esc(p.id)}"><div class="n"><span class="dot" style="background:${p.shirt}"></span><b>${esc(p.name)}</b><span class="ro">${esc(p.role)}</span></div><div class="st">${esc(st.txt || '·')}</div></div>`).join('');
+  const rows = ros.slice(0, 60).map(({ p, st }) => `<div class="rr k-${st.k}${S.focus === p.id ? ' sel' : ''}${S.speakers.has(p.id) ? ' speaking' : ''}" data-id="${esc(p.id)}" tabindex="0" role="button" aria-label="${esc(p.name)}, ${esc(st.txt || '')}"><div class="n"><span class="dot" style="background:${p.shirt}"></span><b>${esc(p.name)}</b><span class="ro">${esc(p.role)}</span></div><div class="st">${esc(st.txt || L('en veille', 'standing by'))}${S.loops[p.id] ? ' 🔁' : ''}</div></div>`).join('');
   const html = `<h3>${L('Agents', 'Agents')} · ${ros.length}</h3>${rows}${ros.length > 60 ? `<div class="ro" style="padding:4px 8px">+${ros.length - 60}</div>` : ''}`;
   if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
 }
 $('#roster').onclick = (e) => { const r = e.target.closest('.rr'); if (!r) return; S.focusLock = Date.now() + 25000; setFocus(r.dataset.id); paintStates(); };
+$('#roster').onkeydown = (e) => { const r = e.target.closest('.rr'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); S.focusLock = Date.now() + 25000; setFocus(r.dataset.id); paintStates(); } else if (r && e.key === 'i') openDetail(r.dataset.id); };
 $('#roster').ondblclick = (e) => { const r = e.target.closest('.rr'); if (r) openDetail(r.dataset.id); };
 function renderBadges() {   // per tile: failed tool calls, a command that has been running a long time, an agent that went quiet
   const now = Date.now();
   for (const id in S.agents) {
     const t = $('#t-' + id); if (!t) continue; const b = t.querySelector('.tbadge'), parts = []; let slow = false, quiet = false;
     if (S.errs[id]) parts.push(`<span class="e">✗ ${S.errs[id]}</span>`);
+    if (S.loops[id]) parts.push(`<span class="l" title="${esc(S.loops[id].kind === 'errors' ? L('Échecs répétés', 'Repeated failures') : L('Même appel répété', 'Same call repeated'))}">🔁 ×${S.loops[id].n}</span>`);
     if (S.live && S.status[id] === 'working') {
       const r = S.run[id];
       if (r && r.ts && atTail() && now - r.ts > 60000) { slow = true; parts.push(`<span class="s">⏳ ${fmtShort(now - r.ts)}</span>`); }
@@ -1087,16 +1154,22 @@ function watchDone(n) {   // live: the team was busy for a while and has now bee
   if (EMBED) window.parent.postMessage({ agentStandup: 'notify', text: msg }, '*');
   else { try { if (document.hidden && 'Notification' in window && Notification.permission === 'granted') new Notification('Agent Standup', { body: msg }); } catch {} }
 }
+const FAV0 = (document.querySelector('link[rel="icon"]') || {}).href;
+function setFav(color) {
+  const l = document.querySelector('link[rel="icon"]'); if (!l || setFav.cur === color) return; setFav.cur = color;
+  if (!color) { l.href = FAV0; return; }
+  const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); g.font = '26px serif'; g.fillText('🎥', 0, 26); g.fillStyle = color; g.beginPath(); g.arc(24, 8, 8, 0, 7); g.fill(); g.strokeStyle = '#12131a'; g.lineWidth = 2; g.stroke(); l.href = c.toDataURL();
+}
 function updateTitle() {
   paintStates(); if (S.live && S.nBlocked && !S.wasBlocked && prefs.notify) { AUD.alert(); const msg = L('Un agent attend peut-être votre feu vert ✋', 'An agent may be waiting for you ✋'); if (EMBED) window.parent.postMessage({ agentStandup: 'notify', text: msg }, '*'); else { try { if (document.hidden && 'Notification' in window && Notification.permission === 'granted') new Notification('Agent Standup', { body: msg }); } catch {} } } S.wasBlocked = S.nBlocked > 0;
   let n = 0; for (const id in S.status) if (S.status[id] === 'working' && !S.gone.has(id)) n++;
-  watchDone(n);
+  watchDone(n); setFav(S.live && S.nBlocked ? '#ff4d4d' : null);
   document.title = S.live && S.nBlocked ? `✋ ${S.nBlocked} ${L('à voir', 'need you')} · Agent Standup` : S.doneUntil > Date.now() && !n ? '✓ ' + L('Terminé', 'Done') + ' · Agent Standup' : S.live && S.playing && n ? `● ${n} ${L('au travail', 'working')} · Agent Standup` : 'Agent Standup';
 }
 setInterval(() => { if (!S.agents || !S.live) return; renderBadges(); updateTitle(); if (document.body.classList.contains('tree')) renderTree(); }, 2000);
 const base = (f) => String(f || '').split('/').pop();
 const fmtDur = (ms) => (ms < 950 ? `${Math.max(1, Math.round(ms))} ms` : ms < 60000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60000)} min ${Math.round((ms % 60000) / 1000)} s`);
-const quiet = (e) => e.kind === 'tools' || e.kind === 'results' || e.kind === 'usage' || e.kind === 'finish';
+const quiet = (e) => e.kind === 'tools' || e.kind === 'results' || e.kind === 'usage' || e.kind === 'finish' || e.kind === 'compact';
 function activityLabel(t) {   // the short "what is on their screen" tag
   const d = t.d || {}, f = base(d.file || t.arg);
   switch (d.kind) {
@@ -1108,6 +1181,7 @@ function activityLabel(t) {   // the short "what is on their screen" tag
     case 'glob': return L('Liste ', 'Listing ') + String(d.pattern || '').slice(0, 24);
     case 'todo': return L('Met à jour sa todo', 'Updating todo list');
     case 'web': return d.url ? L('Consulte ', 'Fetching ') + d.url.replace(/^https?:\/\//, '').slice(0, 26) : L('Recherche sur le web', 'Web search');
+    case 'text': { const w = d.what; if (w === 'question') return L('Pose une question', 'Asking a question'); if (w === 'skill') return L('Utilise ', 'Using skill ') + (d.v || ''); if (w === 'mcp') return d.v || t.name; if (w === 'toolsearch') return L('Cherche un outil', 'Looking for a tool'); return t.name; }
     default: return t.name;
   }
 }
@@ -1228,7 +1302,7 @@ function poof(tile, color) {
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; const c = $('#toasts'); c.appendChild(t); while (c.children.length > 3) c.firstChild.remove(); setTimeout(() => t.remove(), 3100); }
 const BYE = { en: ['Bye, everyone!', 'Off I go. 👋', 'Thanks, see you!', 'My work here is done.', 'Catch you later!', 'Logging off, bye!', 'That’s a wrap!', 'Good luck with the rest!', 'Mic drop. 🎤', 'Leaving the call… ☕'],
   fr: ['Salut tout le monde !', 'Je file. 👋', 'Merci, à plus !', 'Ma mission est terminée.', 'À tout à l’heure !', 'Je me déconnecte, ciao !', 'C’est dans la boîte !', 'Bon courage pour la suite !', 'Mic drop. 🎤', 'Je quitte l’appel… ☕'] };
-function byeLine(id) { const P = BYE[prefs.lang] || BYE.en, seed = hash(id + String(S.clock | 0)); let l = P[seed % P.length]; if (l === S.lastBye) l = P[(seed + 1) % P.length]; return (S.lastBye = l); }
+function byeLine(id) { const P = BYE[FR() ? 'fr' : 'en'], seed = hash(id + String(S.clock | 0)); let l = P[seed % P.length]; if (l === S.lastBye) l = P[(seed + 1) % P.length]; return (S.lastBye = l); }
 function vanish(id) {
   S.gone.add(id); const t = $('#t-' + id), p = S.agents[id]; if (!t || !p) return;
   toast(`${p.name} ${L('a quitté l’appel', 'left the call')} 👋`);
@@ -1252,6 +1326,7 @@ function startTalk(id, text, label) {
   if (S.present === id) $('#pcam').classList.add('speaking');
   const m = t.querySelector('.mouthE'); let open = false; clearInterval(mouths.get(id));
   mouths.set(id, setInterval(() => {
+    if (!m) { const ct = t.querySelector('.cimg-talk'); if (ct) { const lv0 = S.level[id], op = lv0 ? lv0() > 0.05 : (open = !open); ct.style.display = op ? '' : 'none'; t.querySelector('.cimg').style.display = op ? 'none' : ''; } return; }   // custom character: swap between its two frames
     const pm = S.present === id ? $('#pcam .mouthE') : null, lv = S.level[id]; if (lv) { const v = lv(); const ry = (.9 + Math.min(4.2, v * 28)).toFixed(1), rx = (4.8 - Math.min(1.1, v * 6)).toFixed(1); m.setAttribute('ry', ry); m.setAttribute('rx', rx); if (pm) { pm.setAttribute('ry', ry); pm.setAttribute('rx', rx); } }
     else { open = !open; m.setAttribute('ry', open ? 4.2 : 1.1); m.setAttribute('rx', open ? 4 : 4.7); if (pm) { pm.setAttribute('ry', open ? 4.2 : 1.1); pm.setAttribute('rx', open ? 4 : 4.7); } }
   }, 70));
@@ -1273,6 +1348,7 @@ function stopTalk(id) {
   if (S.present === id) { $('#pcap').textContent = ''; $('#pcam').classList.remove('speaking'); const pm = $('#pcam .mouthE'); if (pm) { pm.setAttribute('ry', .9); pm.setAttribute('rx', 4.6); } }
   const t = $('#t-' + id); if (!t) return;
   t.classList.remove('speaking'); const m = t.querySelector('.mouthE'); if (m) { m.setAttribute('ry', .9); m.setAttribute('rx', 4.6); }
+  const ct = t.querySelector('.cimg-talk'); if (ct) { ct.style.display = 'none'; t.querySelector('.cimg').style.display = ''; }
 }
 const clearSpeaking = () => [...S.speakers].forEach(stopTalk);
 
@@ -1356,6 +1432,29 @@ $('#mCoffee').onclick = () => { $('#menu').classList.remove('on'); openExternal(
 //  recap
 // =====================================================================
 const fmt = (ms) => { const s = Math.round(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60), d = Math.floor(h / 24); return d ? `${d}j ${h % 24}h` : h ? `${h}h${String(m % 60).padStart(2, '0')}` : `${m}:${String(s % 60).padStart(2, '0')}`; };
+
+// ---------- highlights: jump to the moments that matter when replaying ----------
+function computeHighlights() {
+  const out = [], ev = S.events; let firstErr = -1, gap = { ms: 0, i: -1 }, prevT = null, comp = [], R = {}, loops = [];
+  ev.forEach((e, i) => {
+    if (e.kind === 'usage' || e.kind === 'finish') return;
+    if (e.kind === 'results' && firstErr < 0 && e.items.some((it) => it.err)) firstErr = i;
+    if (e.kind === 'compact') comp.push(i);
+    if (prevT != null && e.kind !== 'user' && e.t - prevT <= 3600000 && e.t - prevT > gap.ms) gap = { ms: e.t - prevT, i };   // a wait for the human (the next event is their prompt) is not an agent wait
+    if (e.kind !== 'compact') prevT = e.t;
+    const d = loopStep(R, e); if (d && loops.length < 3 && !loops.some((l) => l.agent === e.agent)) loops.push({ i, agent: e.agent, d });
+  });
+  if (firstErr >= 0) out.push({ i: firstErr, t: '✗ ' + L('première erreur', 'first error') });
+  if (gap.ms >= 30000) out.push({ i: gap.i, t: '⏱ ' + L('plus longue attente ', 'longest wait ') + fmtDur(gap.ms) });
+  if (comp.length) out.push({ i: comp[0], t: `🗜 ${L('compactage', 'compaction')}${comp.length > 1 ? ' ×' + comp.length : ''}` });
+  loops.forEach((l) => out.push({ i: l.i, t: `🔁 ${nameOf(l.agent)} ${l.d.kind === 'errors' ? L('échoue en boucle ?', 'failing in a loop?') : L('boucle ?', 'looping?')}` }));
+  out.sort((a, b) => a.i - b.i); return out;
+}
+function renderHighlights() {
+  const box = $('#hl'); if (!box) return; const hs = S.live ? [] : computeHighlights();
+  box.classList.toggle('has', hs.length > 0); box.innerHTML = hs.length ? `<span class="dim" style="font-size:11.5px">${L('Moments clés', 'Highlights')}</span>` + hs.map((h) => `<button class="hlc" data-i="${h.i}">${esc(h.t)}</button>`).join('') : '';
+}
+$('#hl').onclick = (e) => { const b = e.target.closest('.hlc'); if (b && !S.live) seekTo(+b.dataset.i); };
 function openRecap() {
   const per = {}, files = {}; let tools = 0, cmds = 0, errs = 0; const tk = {}, A = (id) => (per[id] = per[id] || { id, tools: 0, files: new Set(), t0: null, t1: null });
   S.events.forEach((e) => {
@@ -1394,7 +1493,7 @@ function prefetchQuips(i) {
   if (!prefs.epi) return; const texts = [];
   for (let k = i; k < Math.min(S.events.length, i + 60) && texts.length < 6; k++) if (S.events[k].kind === 'report') texts.push(baseText(S.events[k], 160));
   const need = texts.filter((t) => !quipMem.has(t)); if (!need.length) return; need.forEach((t) => quipMem.set(t, null));
-  fetch('/api/quips', { method: 'POST', body: JSON.stringify({ texts: need, lang: prefs.lang }) }).then((r) => r.json()).then((d) => (d.texts || []).forEach((q, i) => d.ok && q && q !== need[i] && quipMem.set(need[i], q))).catch(() => {});
+  fetch('/api/quips', { method: 'POST', body: JSON.stringify({ texts: need, lang: FR() ? 'fr' : 'en' }) }).then((r) => r.json()).then((d) => (d.texts || []).forEach((q, i) => d.ok && q && q !== need[i] && quipMem.set(need[i], q))).catch(() => {});
 }
 
 // Little lines that make the call feel alive. They never appear in the transcript and never replace real content: they are short, local (no API) and can be turned off in ⚙.
@@ -1409,12 +1508,12 @@ const ACK = {
 const ACK_RE = [['tests', /test|qa\b|spec|jest|vitest|coverage/], ['review', /review|audit|check|inspect|lint|critique/], ['explore', /explor|search|research|find|investigat|look|map|scan/], ['fix', /fix|bug|debug|error|crash|broken/], ['docs', /\bdoc|readme|write|changelog|spec/], ['ui', /\bui\b|design|css|style|layout|front|page|component/], ['cleanup', /refactor|clean|tidy|dead code/], ['perf', /perf|speed|slow|optimi|latenc|profil/]];
 function ackLine(ev) {
   // classify on role and title only: the prompt text is too noisy
-  const R = ACK[prefs.lang] || ACK.en, text = `${ev.title || ''} ${(S.agents[ev.to] || {}).role || ''}`.toLowerCase(), cat = (ACK_RE.find(([, re]) => re.test(text)) || [])[0];
+  const R = ACK[FR() ? 'fr' : 'en'], text = `${ev.title || ''} ${(S.agents[ev.to] || {}).role || ''}`.toLowerCase(), cat = (ACK_RE.find(([, re]) => re.test(text)) || [])[0];
   const pool = cat && hash(String(ev.ts)) % 4 ? R[cat] : R.any, seed = hash(String(ev.ts) + ev.to); let line = pool[seed % pool.length];
   if (line === S.lastAck) line = pool[(seed + 1) % pool.length]; S.lastAck = line; return line;
 }
 async function react(ev, token) {
-  if ((!prefs.epi && !prefs.banter) || S.boost > 1 || S.hurry) return; const seed = hash(String(ev.ts) + ev.agent), R = REACT[prefs.lang]; let who, line;
+  if ((!prefs.epi && !prefs.banter) || S.boost > 1 || S.hurry) return; const seed = hash(String(ev.ts) + ev.agent), R = REACT[FR() ? 'fr' : 'en']; let who, line;
   if (ev.kind === 'order') { if (!prefs.banter && seed % 100 > 55) return; who = ev.to; line = prefs.banter ? ackLine(ev) : R.ack[seed % R.ack.length]; }
   else if (ev.kind === 'report') { if (!prefs.epi && seed % 100 > 35) return; if (seed % 100 > 60) return; const others = Object.keys(S.status).concat(['main']).filter((x) => x !== ev.agent && S.agents[x] && !S.gone.has(x)); who = others[(seed >>> 3) % others.length]; line = quipMem.get(baseText(ev, 160)) || R.done[seed % R.done.length]; }
   else return;
@@ -1440,15 +1539,16 @@ async function run(i) {
     if (S.idle) { S.idle = false; syncUI(); }
     if (S.live) {   // way behind: skip ahead to stay current, but only count what is actually said: sub-agents produce thousands of silent tool events
       const rem = S.events.length - i;
-      if (rem > 300 || aheadSpeakable(i, 10) > 10) {
-        let k = S.events.length, back = 0; while (k > i && back < 6) { k--; if (SPK.has(S.events[k].kind)) back++; }
+      if (rem > 300 || aheadSpeakable(i, 16) > 16) {   // only a really big backlog is skipped; before that, lines are shortened instead
+        let k = S.events.length, back = 0; while (k > i && back < 8) { k--; if (SPK.has(S.events[k].kind)) back++; }
         const to = rem > 300 ? Math.max(k, S.events.length - 14) : k; if (to > i) { i = to; recomputeStatus(i); paintStatus(); }
       }
     }
-    S.hurry = S.live && aheadSpeakable(i, 3) > 3;   // voices are skipped only when several lines are really waiting, not because of silent tool calls
+    const q = S.live ? aheadSpeakable(i, 14) : 0;   // lines waiting to be said: the more of them, the shorter each one is read, but it is always read
+    S.pace = !S.live ? 0 : q > 7 ? 70 : q > 3 ? 130 : 0; S.hurry = q > 12;   // behind: each line is cut shorter the more are waiting; with no backlog the Spoken length setting decides; voices are only skipped when more than a dozen lines are queued
     S.boost = S.hurry || (S.live && S.events.length - i > 60) ? 3 : 1;
     const ev = S.events[i]; S.idx = i; tally(ev);
-    if (ev.kind === 'usage') { i++; continue; }
+    if (ev.kind === 'usage' || ev.kind === 'compact') { if (ev.kind === 'compact' && S.live && prefs.banter) toast(`${nameOf(ev.agent)}: ${L('contexte compacté 🗜', 'context compacted 🗜')}`); i++; continue; }
     if (ev.kind === 'finish') { applyStatus(ev); paintStatus(); i++; continue; }
     if (ev.kind === 'results') { applyResults(ev, S.boost > 1); await sleep((S.demo ? 900 : S.live ? 30 : 80) / spd()); i++; continue; }
     if (ev.kind === 'tools') { applyStatus(ev); tickTools(ev); AUD.click(); OFFICE.kick(ev.tools[ev.tools.length - 1].name); MEME.fire('tool', { id: ev.agent, name: ev.tools[ev.tools.length - 1].name }); paintStatus(); await sleep((S.demo ? 1100 : S.live ? 110 : 250) / spd()); i++; continue; }
@@ -1456,7 +1556,7 @@ async function run(i) {
     if (isSub(ev.agent) && ev.kind !== 'order') {
       while (j < Math.min(S.events.length, i + 28) && group.length < 3) {
         const e2 = S.events[j];
-        if (e2.kind === 'usage') { tally(e2); j++; continue; }
+        if (e2.kind === 'usage' || e2.kind === 'compact') { tally(e2); j++; continue; }
         if (e2.kind === 'finish') { applyStatus(e2); j++; continue; }
         if (e2.kind === 'tools') { tally(e2); tickTools(e2); applyStatus(e2); j++; continue; }
         if (e2.kind === 'results') { tally(e2); applyResults(e2, true); j++; continue; }
@@ -1469,14 +1569,15 @@ async function run(i) {
     prefetchQuips(i);
     const h = S.voiceTok = { tok: token, stop: false };   // this group's handle: dies with the playback token, or when a human message preempts it
     if (group.length >= 3) MEME.fire('combo', { ids: group.map((g) => g.agent) });
-    const plays = group.map((g, k) => {
+    const playOne = (g) => {
       applyStatus(g);
       const label = g.kind === 'order' ? `${L('pour', 'to')} ${nameOf(g.to)}` : g.kind === 'report' ? `${L('rapport à', 'report to')} ${nameOf(g.to)}` : '', line = spoken(g, S.hurry ? (g.kind === 'order' ? 150 : 180) : 0);   // behind: a sentence or two, not silence
       startTalk(g.agent, line, label);
       if (g.kind === 'order') { S.status[g.to] = 'working'; AUD.join(); MEME.fire('order', { from: g.agent, to: g.to }); setTimeout(() => { paintStatus(); fly(g.agent, g.to, '📨'); popTile(g.to); }, 30); }
       if (g.kind === 'report') { AUD.ding(); MEME.fire('report', { from: g.agent, to: g.to }); setTimeout(() => { fly(g.agent, g.to, '✅'); popTile(g.agent); }, 30); }
-      return speakLine(line, S.agents[g.agent], true, h, FR() && trMem.has(baseText(g))).then(() => stopTalk(g.agent));
-    });
+      return speakLine(clipSpeech(line, S.pace), S.agents[g.agent], true, h, FR() && trMem.has(baseText(g))).then(() => stopTalk(g.agent));
+    };
+    let plays; if (S.live) { plays = []; let chain = Promise.resolve(); for (const g of group) { chain = chain.then(() => (token === S.token && !h.stop ? playOne(g) : null)); plays.push(chain); } } else plays = group.map(playOne);   // live: one voice at a time so each can be heard; replay keeps the overlapping chatter
     warmTTS(i);   // after this group's own request: the next lines are made behind the one being listened to, not in front of it
     S.idx = j - 1; paintStatus();
     S.voice = Promise.all(plays).then(async () => { if (token !== S.token || h.stop) return; for (const g of group) { await react(g, h); if (token !== S.token || h.stop) return; } }).catch(() => {});   // plays on while the loop shows what happens next
@@ -1487,6 +1588,11 @@ async function run(i) {
     S.playing = false; clearSpeaking(); syncUI();
     if (!S.exporting && !S.stopAt && !S.live) { S.idx = S.events.length - 1; paintStatus(); if (prefs.epi) await card(L('FIN', 'THE END'), L('Aucun agent n’a été maltraité durant ce tournage.', 'No agents were harmed.'), 2600); openRecap(); }
   }
+}
+function clipSpeech(t, cap) {   // the bubble keeps the full text; the voice reads the first sentence(s) up to cap characters
+  t = String(t).replace(/\s+/g, ' ').trim(); if (!cap || t.length <= cap) return t;
+  const m = t.slice(0, cap + 40).match(/^.{20,}?[.!?](?=\s|$)/); if (m && m[0].length <= cap + 30) return m[0];
+  return t.slice(0, cap).replace(/\s+\S*$/, '') + '…';
 }
 function pause() { S.playing = false; S.hurry = false; S.boost = 1; S.token++; synth && synth.cancel(); AUD.stopAll(); clearSpeaking(); $('#card').classList.remove('on'); syncUI(); }
 function togglePlay() {
@@ -1518,7 +1624,7 @@ async function loadSession(proj, id) {
   S.events = data.events; S.joinAt = Date.now(); S.idx = 0; S.status = {}; S.tc = {}; S.cur = { proj, id }; S.logTo = 0; S.detail = null; $('#detail').classList.remove('on');
   const opt = $('#sessions').selectedOptions[0]; S.title = (S.live ? niceProj(proj) : opt && opt.dataset.title) || '';
   if (proj === '_demo') S.events.forEach((e) => { if (e.fr) trMem.set(baseText(e), e.fr); });   // the demo ships its own French
-  $('#subtitle').textContent = S.title; recomputeStatus(0); buildStage(); setFocus('main'); renderLog(true); computeGantt(); layout(); paintStatus(); prefetchTr(0); return true;
+  $('#subtitle').textContent = S.title; recomputeStatus(0); buildStage(); renderHighlights(); setFocus('main'); renderLog(true); computeGantt(); layout(); paintStatus(); prefetchTr(0); return true;
 }
 const niceProj = (p) => (p === '_demo' ? '' : String(p).replace(/^-+/, '').replace(/-/g, '/').split('/').slice(-2).join('/'));
 async function fillProjects() {   // live view: follow the latest activity anywhere, or pin one project
@@ -1531,6 +1637,7 @@ async function followCurrent() {
   const stick = S.cur ? `&cur=${encodeURIComponent(S.cur.id)}&curproj=${encodeURIComponent(S.cur.proj)}` : '';   // keep the session being followed while it is active
   const cur = await (await fetch('/api/current?proj=' + encodeURIComponent(Q.get('proj') || prefs.proj || '') + (S.pin ? '&id=' + encodeURIComponent(S.pin) : '') + stick)).json();
   if (!cur.id) { $('#empty').classList.add('on'); return false; } $('#empty').classList.remove('on');
+  if (S.pin && cur.id !== S.pin) S.pin = '';   // the pinned session is gone: follow the latest one instead of staying silently pinned
   if (S.cur && S.cur.id === cur.id && S.cur.proj === cur.proj) return false;
   if (S.cur) await voiceDone();   // a line being spoken finishes before the call moves to another session
   if (!(await loadSession(cur.proj, cur.id))) return false;
@@ -1552,6 +1659,10 @@ setInterval(async () => {
 }, 700);
 
 
+window.addEventListener('message', (e) => {   // the VS Code status bar asks to follow a given session
+  const d = e.data; if (!EMBED || e.source !== window.parent || !d || d.agentStandup !== 'pin' || typeof d.id !== 'string') return;
+  prefs.proj = typeof d.proj === 'string' ? d.proj : ''; S.pin = d.id; S.cur = null; setView('call'); if (S.live) { fillProjects(); followCurrent(); } else setMode('live');
+});
 // ---------- meeting chrome: participants and a clock ----------
 function renderMeet() {
   const m = $('#meet'); if (!m) return; const n = Object.keys(S.agents).filter((id) => id !== 'user' && !S.gone.has(id) && ((S.status[id] && S.status[id] !== 'done') || id === 'main')).length;
@@ -1560,7 +1671,7 @@ function renderMeet() {
   const s = Math.max(0, Math.floor(ms / 1000)), hh = Math.floor(s / 3600), mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0'), ss = String(s % 60).padStart(2, '0');
   const html = `${S.live ? '<i title="live"></i>' : ''}<span>👥 ${n}</span><span>${hh ? hh + ':' : ''}${mm}:${ss}</span>`; if (m.innerHTML !== html) m.innerHTML = html;
 }
-setInterval(() => { if (S.live && S.events && S.events.length) renderMeet(); }, 1000);
+setInterval(() => { if (!document.hidden && S.live && S.events && S.events.length) renderMeet(); }, 1000);
 
 // ---------- reactions: send a little emoji to whoever has the floor ----------
 $('#reactBar').onclick = (e) => {
@@ -1676,10 +1787,11 @@ async function exportVideo(from = 0, to = 0) {
 //  UI wiring
 // =====================================================================
 function applyLang() {
-  document.documentElement.lang = prefs.lang;
-  document.querySelectorAll('[data-fr]').forEach((el) => (el.textContent = FR() ? el.dataset.fr : el.dataset.en));
-  document.querySelectorAll('#langSeg button').forEach((b) => b.classList.toggle('on', b.dataset.l === prefs.lang));
-  [['#bPlay', L('Pause / Lecture (espace)', 'Pause / Play (space)')], ['#bLog', 'Transcript'], ['#bMute', L('Son (touche M)', 'Sound (M key)')], ['#bMenu', L('Réglages', 'Settings')], ['#dclose', L('Fermer', 'Close')]].forEach(([q, t]) => { const el = $(q); el.title = t; el.setAttribute('aria-label', t); });
+  renderCharInfo();
+  document.documentElement.lang = (LANGS.find((l) => l[0] === prefs.lang) || LANGS[0])[2];
+  document.querySelectorAll('[data-fr]').forEach((el) => (el.textContent = FR() ? el.dataset.fr : tr(el.dataset.en)));
+  const sel = $('#langSel'); if (!sel.options.length) sel.innerHTML = LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join(''); sel.value = prefs.lang;
+  [['#bPlay', L('Pause / Lecture (espace)', 'Pause / Play (space)')], ['#bLog', 'Transcript'], ['#bMute', L('Son (touche M)', 'Sound (M key)')], ['#bMenu', L('Réglages', 'Settings')], ['#dclose', L('Fermer', 'Close')], ['#officeVol', L('Volume de l’ambiance', 'Ambience volume')], ['#musicVol', L('Volume de la musique', 'Music volume')], ['#liveProj', L('Projet à suivre', 'Project to follow')], ['#reactBar', L('Réactions', 'Reactions')], ['#logQ', L('Rechercher dans la transcription', 'Search the transcript')], ['#roster', L('Agents', 'Agents')]].forEach(([q, t]) => { const el = $(q); if (!el) return; el.title = t; el.setAttribute('aria-label', t); }); $('#logQ').placeholder = L('Rechercher…', 'Search…'); document.querySelectorAll('#reactBar button').forEach((b) => b.setAttribute('aria-label', b.dataset.e));
   $('#gT').textContent = L('Rejoindre l’appel', 'Join the call'); $('#gP').textContent = L('Cliquez pour activer le son et suivre votre session Claude Code en direct.', 'Click to enable sound and follow your Claude Code session live.'); $('#gB').textContent = L('▶ Rejoindre', '▶ Join');
   $('#eDemo').textContent = L('▶ Voir la démo', '▶ Watch the demo'); $('#eT').textContent = L('En attente d’une session', 'Waiting for a session'); $('#eP').textContent = L('Lancez Claude Code dans ce dossier : l’appel démarrera tout seul.', 'Start Claude Code in this folder — the call will start by itself.');
   for (const id in S.agents) { const p = persona(S.agents[id]); Object.assign(S.agents[id], { name: p.name, role: p.role }); const t = $('#t-' + id); if (t) { t.querySelector('.tag span').textContent = p.role; t.querySelector('.tag b').textContent = p.name; if (id === 'main' || id === 'user') t.querySelector('.tag span').textContent = p.role; } }
@@ -1703,7 +1815,9 @@ function toggleMute() { if (elsewhere()) { AUD.muted = false; claimAudio(); retu
 function setView(v) { prefs.view = v; savePrefs(); document.body.classList.toggle('tree', v === 'tree'); document.body.classList.toggle('board', v === 'board'); if (v === 'board') renderBoardView(); document.querySelectorAll('#viewSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); renderTree(); }
 
 $('#viewSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); };
-$('#langSeg').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; prefs.lang = b.dataset.l; prefs.langChosen = true; savePrefs(); if (FR()) fetch('/api/warm').catch(() => {}); AUD.stopAll(); synth && synth.cancel(); applyLang(); if (FR()) prefetchTr(S.idx); };
+$('#langSel').onchange = () => setLang($('#langSel').value, true);
+$('#charReload').onclick = async () => { await loadChars(); for (const id in S.agents) S.agents[id].custom = customFor(id); buildStage(); paintStatus(); renderCharInfo(); };
+$('#charOpen').onclick = () => window.parent.postMessage({ agentStandup: 'openCharacters' }, '*');
 $('#modeSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); };
 $('#menu').onclick = (e) => { const b = e.target.closest('.mi[data-t]'); if (!b) return; prefs[b.dataset.t] = !prefs[b.dataset.t]; savePrefs(); if (prefs[b.dataset.t] && ['voice', 'office', 'music', 'notify', 'meme'].includes(b.dataset.t)) claimAudio(); b.querySelector('.sw').classList.toggle('on', prefs[b.dataset.t]); AUD.apply(); if (b.dataset.t === 'office') { prefs.officeChosen = true; savePrefs(); $('#officeBox').style.display = prefs.office ? '' : 'none'; } if (b.dataset.t === 'reactions') document.body.classList.toggle('react', prefs.reactions); if (b.dataset.t === 'roster') { document.body.classList.toggle('rost', prefs.roster); paintStates(); } if (b.dataset.t === 'notify' && prefs.notify) askNotify(); if (b.dataset.t === 'vanish' && !prefs.vanish) { S.gone.clear(); paintStatus(); }
   if (b.dataset.t === 'music') { $('#musicBox').style.display = prefs.music ? '' : 'none'; if (prefs.music) { AUD.init(); AUD.apply(); } }
@@ -1778,6 +1892,7 @@ addEventListener('keydown', (e) => {
 if (EMBED) $('#mBrowser').style.display = '';
 
 (async function init() {
+  if (!LANGS.some((l) => l[0] === prefs.lang)) prefs.lang = 'en'; await loadLocale(prefs.lang); await loadChars();
   if (Q.get('meme') === '1') { prefs.meme = true; prefs.office = true; $('#memeBox').style.display = ''; }   // a link can force meme mode (demo links)
   document.body.classList.toggle('rost', prefs.roster !== false); document.body.classList.toggle('react', !!prefs.reactions); setView(prefs.view); applyLang(); MEME.apply(); applyMute(); TTS.init().then(updateHint).then(kokoroUI);
   loadHealth().then(() => {   // French by default only if translation can actually work; otherwise stay in English without a warning
@@ -1785,7 +1900,7 @@ if (EMBED) $('#mBrowser').style.display = '';
     if (!prefs.langChosen && FR() && h.claude === null && !h.apiKey) { prefs.lang = 'en'; applyLang(); }
     if (FR()) fetch('/api/warm').catch(() => {});
   });
-  if (Q.get('lang')) { prefs.lang = Q.get('lang') === 'fr' ? 'fr' : 'en'; applyLang(); }   // not saved: lets a link force a language
+  if (Q.get('lang')) { await setLang(Q.get('lang'), false); }   // not saved: lets a link force a language
   if (Q.get('demo')) {
     if (Q.get('view') === 'tree') setView('tree');
     await setMode('demo'); if (Q.get('speed')) $('#speed').value = Q.get('speed');

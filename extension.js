@@ -1,10 +1,11 @@
 // Agent Standup — VS Code extension host. Runs the local server in-process and shows it in a webview.
 const vscode = require('vscode');
-const http = require('http');
+const http = require('http'), fs = require('fs');
 
 let panel = null, status = null, started = null;
 
 const cfg = () => vscode.workspace.getConfiguration('agentStandup');
+const tt = (s, ...a) => (vscode.l10n && vscode.l10n.t ? vscode.l10n.t(s, ...a) : s.replace(/\{(\d+)\}/g, (_, i) => a[i]));   // runtime strings: bundles in ./l10n, the English text is the key
 const projKey = () => {
   const f = vscode.workspace.workspaceFolders;
   if (!f || !f.length || !cfg().get('onlyThisWorkspace')) return '';
@@ -34,10 +35,11 @@ async function url() {
   return `http://localhost:${port}/${q}`;
 }
 
-async function openPanel() {
-  if (panel) { panel.reveal(); return; }
+async function openPanel(pin) {   // pin: { id, proj } of the session to follow (from the status bar)
+  if (panel) { try { panel.reveal(); if (pin && pin.id) panel.webview.postMessage({ agentStandup: 'pin', id: pin.id, proj: pin.proj }); return; } catch { panel = null; } }   // a disposed panel falls through and is recreated
   let u;
   try { u = await url(); } catch (e) { return vscode.window.showErrorMessage(e.message); }
+  if (pin && pin.id) u += `&pin=${encodeURIComponent(pin.id)}&proj=${encodeURIComponent(pin.proj || '')}`;
   const ext = await vscode.env.asExternalUri(vscode.Uri.parse(u + '&embed=1'));
   panel = vscode.window.createWebviewPanel('agentStandup', 'Agent Standup', vscode.ViewColumn.Beside, { enableScripts: true, retainContextWhenHidden: true });
   relay(panel.webview); panel.webview.html = frameHtml(ext.toString(true));
@@ -47,12 +49,13 @@ const frameHtml = (src) => `<!doctype html><html><head><meta charset="utf-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http: https:; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
     <style>html,body{margin:0;height:100%;background:#12131a}iframe{border:0;width:100%;height:100vh}</style></head>
     <body><iframe src="${src}" allow="autoplay; clipboard-write"></iframe>
-    <script>const vs = acquireVsCodeApi(); addEventListener('message', (e) => { if (e.data && e.data.agentStandup) vs.postMessage(e.data); });</script></body></html>`;
+    <script>const vs = acquireVsCodeApi(); const fr = document.querySelector('iframe'); addEventListener('message', (e) => { if (e.source === fr.contentWindow) { if (e.data && e.data.agentStandup) vs.postMessage(e.data); } else if (e.data && e.data.agentStandup === 'pin') fr.contentWindow.postMessage(e.data, '*'); });</script></body></html>`;
 // Messages from the page: open it in the browser, or open a donation link (https only, known donation sites only).
 const DONATE_HOSTS = /^(www\.)?(buymeacoffee\.com|ko-fi\.com|paypal\.me|paypal\.com|github\.com)$/;
 const relay = (webview) => webview.onDidReceiveMessage((m) => {
   if (!m) return;
   if (m.agentStandup === 'openBrowser') openBrowser();
+  if (m.agentStandup === 'openCharacters') openCharacters();
   if (m.agentStandup === 'notify' && typeof m.text === 'string') vscode.window.showInformationMessage('Agent Standup: ' + m.text.slice(0, 120));
   if (m.agentStandup === 'openExternal') { try { const u = new URL(m.url); if (u.protocol === 'https:' && DONATE_HOSTS.test(u.hostname)) vscode.env.openExternal(vscode.Uri.parse(u.toString())); } catch {} }
 });
@@ -68,6 +71,14 @@ const sidebar = {
   },
 };
 
+// The folder where the person drops their own pixel art (lead.png, you.png, others for the sub-agents, name-talk.png for an open mouth).
+async function openCharacters() {
+  try {
+    const dir = require('./server.js').charactersDir(); const fresh = !fs.existsSync(dir); fs.mkdirSync(dir, { recursive: true });
+    if (fresh) fs.writeFileSync(require('path').join(dir, 'README.txt'), 'Put your pixel art here (PNG, GIF, WebP, up to 300 KB each).\nlead.png = the lead (Claude) · you.png = you · any other image = a sub-agent\nname-talk.png = optional open-mouth frame of name.png\nThen press Reload in the Agent Standup settings menu.\n');
+    vscode.env.openExternal(vscode.Uri.file(dir));
+  } catch (e) { vscode.window.showErrorMessage(e.message); }
+}
 async function openBrowser() {
   try { vscode.env.openExternal(vscode.Uri.parse(await url())); } catch (e) { vscode.window.showErrorMessage(e.message); }
 }
@@ -84,17 +95,37 @@ function pingActive(ctx) {
 }
 function activate(ctx) {
   pingActive(ctx);
-  const applyPath = () => { process.env.AGENT_STANDUP_CLAUDE = cfg().get('claudePath') || ''; };
-  applyPath(); ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration((ev) => { if (ev.affectsConfiguration('agentStandup.claudePath')) applyPath(); }));
+  const applyPath = () => { process.env.AGENT_STANDUP_CLAUDE = cfg().get('claudePath') || ''; process.env.AGENT_STANDUP_CHARACTERS = cfg().get('charactersPath') || ''; };
+  applyPath(); ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration((ev) => { if (ev.affectsConfiguration('agentStandup.claudePath') || ev.affectsConfiguration('agentStandup.charactersPath')) applyPath(); }));
   ctx.subscriptions.push(
     vscode.commands.registerCommand('agentStandup.open', openPanel),
     vscode.commands.registerCommand('agentStandup.openInBrowser', openBrowser),
+    vscode.commands.registerCommand('agentStandup.openCharacters', openCharacters),
     vscode.commands.registerCommand('agentStandup.focus', () => vscode.commands.executeCommand('workbench.view.extension.agentStandup')),
     vscode.window.registerWebviewViewProvider('agentStandup.view', sidebar, { webviewOptions: { retainContextWhenHidden: true } }),
   );
   status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
-  status.text = '$(device-camera-video) Agent Standup'; status.tooltip = 'Open the live Agent Standup call'; status.command = 'agentStandup.open';
+  status.text = '$(device-camera-video) Agent Standup'; status.tooltip = tt('Open the live Agent Standup call'); status.command = 'agentStandup.open';
   status.show(); ctx.subscriptions.push(status);
+  // Glanceable state without opening anything: counts for this workspace, red when an agent may need you. Reads the session files directly (no server needed).
+  let target = null;
+  const poll = () => {
+    try {
+      if (!cfg().get('statusBar') || !vscode.window.state.focused) return;
+      const key = projKey(), rows = require('./server.js').boardRows().filter((r) => !key || r.proj === key), now = Date.now();
+      const act = rows.filter((r) => r.state !== 'idle' || now - r.mtime < 15 * 60e3), cnt = (st) => act.filter((r) => r.state === st).length;
+      const blocked = cnt('blocked'), working = cnt('working') + cnt('waiting'), turn = cnt('turn');
+      const parts = []; if (blocked) parts.push('$(warning) ' + tt('{0} needs you', blocked)); if (working) parts.push('$(sync~spin) ' + tt('{0} working', working)); if (!blocked && !working && turn) parts.push('$(check) ' + tt('your turn'));
+      status.text = '$(device-camera-video) ' + (parts.join(' · ') || 'Agent Standup');
+      status.backgroundColor = blocked ? new vscode.ThemeColor('statusBarItem.errorBackground') : undefined;
+      const best = act.find((r) => r.state === 'blocked') || act.find((r) => r.state === 'working') || act.find((r) => r.state === 'waiting') || act[0] || null; target = best ? { id: best.id, proj: best.proj } : null;
+      status.tooltip = act.length ? act.slice(0, 6).map((r) => `${{ blocked: '✋', working: '⚙', waiting: '🔗', turn: '✓', idle: '💤' }[r.state]} ${r.title}`).join('\n') + '\n\n' + tt('Click to open the call') : tt('Open the live Agent Standup call');
+    } catch {}
+  };
+  ctx.subscriptions.push(vscode.commands.registerCommand('agentStandup.openStatus', () => openPanel(target)));
+  status.command = 'agentStandup.openStatus';
+  try { ctx.subscriptions.push(vscode.window.onDidChangeWindowState((s) => { if (s.focused) poll(); })); } catch {}   // refresh the moment the window regains focus
+  const pollT = setInterval(poll, 4000); poll(); ctx.subscriptions.push({ dispose: () => clearInterval(pollT) });
   // If another VS Code window was serving the port and closes, take over so this window keeps working.
   const watch = setInterval(async () => { if (!started) return; const s = await started; if (!s.error && !(await ping(s.port))) { started = null; ensureServer(); } }, 5000);
   ctx.subscriptions.push({ dispose: () => clearInterval(watch) });
