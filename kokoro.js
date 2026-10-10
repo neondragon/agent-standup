@@ -7,7 +7,8 @@ const { spawn } = require('child_process');
 
 const WIN = process.platform === 'win32';
 const DIR = process.env.AGENT_STANDUP_KOKORO_DIR || (WIN ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'agent-standup', 'kokoro') : path.join(os.homedir(), '.cache', 'agent-standup', 'kokoro'));
-const DTYPE = /^(q8|q4|fp32|fp16|q4f16)$/.test(process.env.AGENT_STANDUP_KOKORO_DTYPE || '') ? process.env.AGENT_STANDUP_KOKORO_DTYPE : 'q8';
+const DTYPES = /^(q8|q4|fp32|fp16|q4f16)$/;
+let DTYPE = DTYPES.test(process.env.AGENT_STANDUP_KOKORO_DTYPE || '') ? process.env.AGENT_STANDUP_KOKORO_DTYPE : 'q8';   // q8: 97 MB, best quality; q4: 304 MB, about twice as fast
 const PKG = 'kokoro-js@1.2.1';
 const WORKER = process.env.AGENT_STANDUP_KOKORO_WORKER || path.join(__dirname, 'kokoro-worker.js');
 const LOG = path.join(DIR, 'install.log');
@@ -82,6 +83,10 @@ function startWorker() {
   return w;
 }
 function warm() { if (installed() && !worker && restarts < MAX_RESTARTS) try { startWorker(); } catch {} }
+function setDtype(d) {   // the page's choice of model; a change restarts the worker, which fetches the other model on first use
+  if (!DTYPES.test(d || '') || d === DTYPE) return false;
+  DTYPE = d; restarts = 0; lastError = ''; if (worker) { try { worker.p.kill(); } catch {} worker = null; } warm(); return true;
+}
 function synth(text, voice, speed, out, onChunk) {   // with onChunk(pcm16Buffer, seconds): streamed piece by piece, the whole line still written to `out`
   if (!installed()) return Promise.reject(new Error('kokoro not installed'));
   if (!hasVoice(voice)) return Promise.reject(new Error('unknown voice'));
@@ -96,4 +101,4 @@ function status() {
 function shutdown() { if (worker) { try { worker.p.kill(); } catch {} worker = null; } if (job) { try { job.kill(); } catch {} job = null; } }
 const _reset = () => { restarts = 0; lastError = ''; };
 
-module.exports = { DIR, DTYPE, voices, hasVoice, speedFor, status, install, warm, synth, shutdown, findNpm, _reset };
+module.exports = { DIR, dtype: () => DTYPE, setDtype, voices, hasVoice, speedFor, status, install, warm, synth, shutdown, findNpm, _reset };

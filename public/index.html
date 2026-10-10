@@ -234,6 +234,8 @@
   <button class="mi" data-t="voice"><span data-fr="Voix des agents" data-en="Agent voices">Voix des agents</span><i class="sw"></i></button>
   <div class="box" id="vstyleBox" style="display:flex;gap:6px;align-items:center"><select id="vstyle" style="flex:1;min-width:0"></select><button id="vtest" title="Test this voice">▶</button></div>
   <div class="box" id="kokoroBox" style="display:none"><button id="kokoroInstall"></button><div class="hint" id="kokoroHint" style="padding:2px 0 6px"></div></div>
+  <div class="box" id="kokoroOpts" style="display:none"><div class="lbl"><span data-fr="Modèle Kokoro" data-en="Kokoro model">Modèle Kokoro</span></div><select id="kdtype"><option value="q8" data-fr="q8 — meilleure qualité (97 Mo)" data-en="q8 — best quality (97 MB)">q8 — meilleure qualité (97 Mo)</option><option value="q4" data-fr="q4 — plus rapide (304 Mo de plus)" data-en="q4 — faster (304 MB more)">q4 — plus rapide (304 Mo de plus)</option></select><div class="hint" id="kdtypeHint" style="display:none;padding:0 0 6px"></div></div>
+  <div class="box" id="uvoiceBox"><div class="lbl"><span data-fr="Votre voix" data-en="Your voice">Votre voix</span></div><select id="uvoice"></select></div>
   <div class="box" id="vspeedBox"><div class="lbl"><span data-fr="Vitesse des voix" data-en="Voice speed">Vitesse des voix</span><span id="vspeedVal"></span></div><input id="vspeed" type="range" min="0.7" max="1.6" step="0.05" style="width:100%" aria-label="Voice speed"></div>
   <button class="mi" data-t="office"><span data-fr="Ambiance de bureau (clavier, café…)" data-en="Office ambience (keys, coffee…)">Ambiance de bureau (clavier, café…)</span><i class="sw"></i></button>
   <div class="box" id="officeBox" style="display:none"><input id="officeVol" type="range" min="0.1" max="1" step="0.05" style="width:100%" aria-label="Ambience volume"></div>
@@ -290,7 +292,7 @@ const CID = Math.random().toString(36).slice(2, 12);   // identifies this window
 const Q = new URLSearchParams(location.search);
 const EMBED = Q.get('embed') === '1' || window.parent !== window;
 
-let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
+let prefs = { lang: 'en', voice: true, voiceSpeed: 1.15, kokoroDtype: 'q8', userVoice: '', roster: true, banter: true, reactions: false, office: false, officeVol: 0.8, vstyle: 'kokoro', notify: false, epi: false, vanish: true, music: false, station: 'fip', musicVol: 0.35, view: 'call' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem('cc.prefs') || '{}')); } catch {}
 if (prefs.vstyle === 'babble') prefs.vstyle = 'animal', prefs.vstyleChosen = true;
 if (!prefs.vstyleChosen && (prefs.vstyle === 'animal' || prefs.vstyle === 'sims')) prefs.vstyle = 'cartoon';   // the gibberish styles are opt-in: understandable voices by default
@@ -616,16 +618,22 @@ function rankVoices(list) {   // list of names → best distinct voices first
   return out.slice(0, 5);
 }
 const TTS = {
-  server: false, platform: '', engine: 'system', dead: false, pool: { fr: [], en: [] }, cache: new Map(),
+  server: false, platform: '', engine: 'system', dead: false, pool: { fr: [], en: [] }, list: { fr: [], en: [] }, cache: new Map(),
   async init() {   // Kokoro when the user wants it and the server has it (its order is the character order), else the ranked system voices
-    this.server = false; this.engine = 'system'; this.pool = { fr: [], en: [] };
-    if (prefs.vstyle === 'kokoro' && !this.dead) {
-      try { const d = await (await fetch('/api/voices?engine=kokoro')).json(); if (d.available) { this.server = true; this.engine = 'kokoro'; for (const l of ['fr', 'en']) this.pool[l] = d.voices.filter((v) => v.locale.startsWith(l + '_')).map((v) => v.name).slice(0, 8); return; } } catch {}
-    }
-    try { const d = await (await fetch('/api/voices')).json(); this.platform = d.platform || ''; if (!d.available) return; this.server = true;
-      for (const l of ['fr', 'en']) this.pool[l] = rankVoices(d.voices.filter((v) => v.locale.startsWith(l + '_')).map((v) => v.name)); } catch {}
+    this.server = false; this.engine = 'system'; this.pool = { fr: [], en: [] }; this.list = { fr: [], en: [] };
+    try {
+      if (prefs.vstyle === 'kokoro' && !this.dead) {
+        const d = await (await fetch('/api/voices?engine=kokoro&dtype=' + encodeURIComponent(prefs.kokoroDtype || 'q8'))).json();
+        if (d.available) { this.server = true; this.engine = 'kokoro'; for (const l of ['fr', 'en']) { this.list[l] = d.voices.filter((v) => v.locale.startsWith(l + '_')).slice(0, 8); this.pool[l] = this.list[l].map((v) => v.name); } }
+      }
+      if (!this.server) {
+        const d = await (await fetch('/api/voices')).json(); this.platform = d.platform || '';
+        if (d.available) { this.server = true; for (const l of ['fr', 'en']) { this.pool[l] = rankVoices(d.voices.filter((v) => v.locale.startsWith(l + '_')).map((v) => v.name)); this.list[l] = this.pool[l].map((name) => ({ name, label: name })); } }
+      }
+    } catch {}
+    fillUserVoice();
   },
-  voiceFor(p, fr = FR()) { const pool = this.pool[fr ? 'fr' : 'en']; return pool.length ? (p.id === 'main' ? pool[0] : pool[(p.vi >>> 2) % pool.length]) : null; },
+  voiceFor(p, fr = FR()) { const pool = this.pool[fr ? 'fr' : 'en']; if (!pool.length) return null; if (p.id === 'user' && pool.includes(prefs.userVoice)) return prefs.userVoice; return p.id === 'main' ? pool[0] : pool[(p.vi >>> 2) % pool.length]; },   // the human's voice is the user's pick when it is in the current list
   rate() { return Math.round(Math.max(120, Math.min(360, 178 * vspeed() * (S.live ? 1.12 : +$('#speed').value))) / 10) * 10; },   // wpm; every engine derives its own speed from it
   key(text, voice, rate) { return this.engine + '|' + voice + '|' + rate + '|' + text; },
   buf(text, voice, rate) {
@@ -651,13 +659,18 @@ function warmTTS(i) {   // synthesize the next few lines ahead of time
 let kokoroTimer = null;
 async function kokoroUI() {
   const box = $('#kokoroBox'), btn = $('#kokoroInstall'), hint = $('#kokoroHint'); clearTimeout(kokoroTimer);
-  if (prefs.vstyle !== 'kokoro') { box.style.display = 'none'; return; }
+  if (prefs.vstyle !== 'kokoro') { box.style.display = 'none'; $('#kokoroOpts').style.display = 'none'; return; }
   let st = null; try { st = await (await fetch('/api/kokoro')).json(); } catch {} if (!st) { box.style.display = 'none'; return; }
   if (st.installed && !st.installing) {
     box.style.display = st.error ? '' : 'none'; btn.style.display = 'none'; hint.style.color = ''; hint.textContent = st.error ? L('Voix naturelles indisponibles : ', 'Natural voices unavailable: ') + st.error : '';
     if (TTS.engine !== 'kokoro' && !TTS.dead) TTS.init().then(updateHint);
+    $('#kokoroOpts').style.display = ''; $('#kdtype').value = st.dtype;
+    const kh = $('#kdtypeHint'); kh.style.display = st.ready || st.error ? 'none' : ''; kh.style.color = 'var(--dim)';
+    kh.textContent = L(`Chargement du modèle ${st.dtype} (téléchargé la première fois)…`, `Loading the ${st.dtype} model (downloaded the first time)…`);
+    if (!st.ready && !st.error) kokoroTimer = setTimeout(kokoroUI, 2000);
     return;
   }
+  $('#kokoroOpts').style.display = 'none';
   box.style.display = ''; btn.style.display = ''; btn.disabled = st.installing || !st.npm; hint.style.color = st.error || !st.npm ? '' : 'var(--dim)';   // amber only when something is wrong
   btn.textContent = st.installing ? L('Installation…', 'Installing…') : st.error ? L('Réessayer', 'Retry') : L(`Installer (une fois, ~${st.sizeMb} Mo)`, `Install (one-time, ~${st.sizeMb} MB)`);
   hint.textContent = !st.npm ? L('npm introuvable : installez Node.js pour les voix naturelles.', 'npm not found: install Node.js to use natural voices.')
@@ -666,6 +679,13 @@ async function kokoroUI() {
     : L('Télécharge kokoro-js (npm) et le modèle Kokoro-82M (Hugging Face) dans ', 'Downloads kokoro-js (npm) and the Kokoro-82M model (Hugging Face) into ') + st.dir;
   if (st.installing) kokoroTimer = setTimeout(kokoroUI, 2000);
 }
+$('#kdtype').onchange = () => { prefs.kokoroDtype = $('#kdtype').value; savePrefs(); TTS.cache.clear(); TTS.init().then(updateHint).then(kokoroUI); };
+function fillUserVoice() {   // ⚙ → Your voice: Auto, or any voice of the current engine and language
+  const sel = $('#uvoice'), list = TTS.list[FR() ? 'fr' : 'en'];
+  sel.innerHTML = [`<option value="">${L('Auto', 'Auto')}</option>`, ...list.map((v) => `<option value="${esc(v.name)}">${esc(v.label || v.name)}</option>`)].join('');
+  sel.value = list.some((v) => v.name === prefs.userVoice) ? prefs.userVoice : ''; sel.disabled = !list.length;
+}
+$('#uvoice').onchange = () => { prefs.userVoice = $('#uvoice').value; savePrefs(); };
 $('#kokoroInstall').onclick = async () => { $('#kokoroInstall').disabled = true; try { await fetch('/api/kokoro/install', { method: 'POST' }); } catch {} kokoroUI(); };
 
 // ---- Cartoon voices: the same system voice, given a character by a small WebAudio chain (pitch, vibrato, robot, radio…), or syllable "babble" in the spirit of Animal Crossing.
@@ -749,7 +769,7 @@ async function speakStream(text, voice, p, gain, token) {
     const src = c.createBufferSource(); src.buffer = buf; src.connect(inNode);
     at = Math.max(at, c.currentTime + 0.03); src.start(at); const dur = buf.duration; at += dur;
     srcs.add(src); AUD.live.add(src);
-    last = new Promise((res) => { src.onended = () => { srcs.delete(src); AUD.live.delete(src); res(); }; setTimeout(res, dur * 1000 + 800); });
+    last = new Promise((res) => { src.onended = () => { srcs.delete(src); AUD.live.delete(src); res(); }; setTimeout(res, (at - c.currentTime) * 1000 + 800); });   // from the scheduled end: chunks arrive while earlier ones still play
   };
   const reader = r.body.getReader(); let pend = new Uint8Array(0);
   try {
@@ -1597,17 +1617,30 @@ $('#station').innerHTML = STATIONS.map((s) => `<option value="${s.id}">📻 ${s.
 $('#station').value = prefs.station; $('#musicVol').value = prefs.musicVol; $('#musicBox').style.display = prefs.music ? '' : 'none';
 $('#station').onchange = (e) => { prefs.station = e.target.value; savePrefs(); AUD.init(); RADIO.sync(); };
 $('#vstyle').innerHTML = [['kokoro', 'Voix naturelles Kokoro', 'Kokoro natural voices'], ['natural', 'Voix système', 'System voices'], ['cartoon', 'Cartoon (voix système + effets)', 'Cartoon (system voice + effects)'], ['animal', 'Animal Crossing (babillage)', 'Animal Crossing (babble)'], ['sims', 'Simlish (babillage)', 'Simlish (babble)']].map(([v, fr, en]) => `<option value="${v}" data-fr="${fr}" data-en="${en}">${L(fr, en)}</option>`).join(''); $('#vstyle').value = prefs.vstyle;
-// ▶ next to the voice list: the lead says a sample line with the current style, engine and speed, so a choice can be heard before the next real line.
+// ▶ next to the voice list: a short exchange between the lead and two sub-agents with the current style, engine and speed, so the whole
+// cast can be heard before the next real line. Real agents of the session when there are some, stand-ins otherwise.
 $('#vtest').onclick = async () => {
   const b = $('#vtest'); if (b.disabled) return; b.disabled = true; b.textContent = '…';
   try {
     if (!prefs.voice) { prefs.voice = true; savePrefs(); document.querySelector('#menu .mi[data-t="voice"] .sw').classList.add('on'); }
     if (AUD.muted) toggleMute(); claimAudio(); AUD.init(); AUD.apply();
-    const p = S.agents.main || { id: 'main', vi: 0, lead: true, name: 'Claude', shirt: '#7c9cff' };
-    const line = L(`Bonjour, je suis ${p.name}. Les tests passent, le build est vert, et je prendrais bien un café.`, `Hi, I'm ${p.name}. The tests pass, the build is green, and I would love a coffee.`);
-    if (S.agents.main && $('#t-main')) startTalk('main', line, '🔊');
-    await speakLine(line, p, true, S.token);
-  } catch {} finally { if (S.agents.main) stopTalk('main'); b.disabled = false; b.textContent = '▶'; }
+    const subs = Object.values(S.agents).filter((p) => p.id !== 'main' && p.id !== 'user' && p.name).slice(0, 2);
+    const lead = S.agents.main || { id: 'main', vi: 0, lead: true, name: 'Claude', shirt: '#7c9cff' }, you = S.agents.user || { id: 'user', vi: 0, name: L('Vous', 'You'), shirt: '#f58ca0' };
+    const a = subs[0] || { id: 'sample-a', vi: 4, name: 'Iris', shirt: '#f5c04a' }, c = subs[1] || { id: 'sample-b', vi: 8, name: 'Remy', shirt: '#8ff0ff' };
+    const script = [
+      [you, L(`${lead.name}, la page de connexion est lente et les tests du panier échouent sans arrêt. Tu peux regarder ?`, `${lead.name}, the login page is slow and the cart tests keep failing. Can you sort it out?`)],
+      [lead, L(`Bonjour l’équipe. La page de connexion est lente et les tests du panier échouent. ${a.name}, prends l’API ; ${c.name}, les tests.`, `Morning, team. The login page is slow and the cart tests are flaky. ${a.name}, take the API; ${c.name}, the tests.`)],
+      [a, L('Je m’y mets. Je commence par la recherche de session.', 'On it. I will start with the session lookup.')],
+      [c, L('Je lance la suite du panier, je reviens dans une minute.', 'Running the cart suite now, back in a minute.')],
+      [a, L('Trouvé : une requête par ligne. Regroupée, la page est de nouveau rapide.', 'Found it: one query per row. Batched, and the page is fast again.')],
+      [c, L('Les tests passent, le build est vert.', 'Tests pass, the build is green.')],
+      [lead, L('Beau travail, tout le monde. Le café est pour moi.', 'Nice work, everyone. Coffee is on me.')],
+    ];
+    for (const [p, line] of script) {
+      const tile = S.agents[p.id] && $('#t-' + p.id); if (tile) startTalk(p.id, line, '🔊');
+      try { await speakLine(line, p, true, S.token); } finally { if (tile) stopTalk(p.id); }
+    }
+  } catch {} finally { b.disabled = false; b.textContent = '▶'; }
 };
 $('#vstyle').onchange = () => { prefs.vstyle = $('#vstyle').value; prefs.vstyleChosen = true; savePrefs(); TTS.dead = false; TTS.cache.clear(); TTS.init().then(updateHint); kokoroUI(); };
 $('#officeVol').value = prefs.officeVol; $('#officeBox').style.display = prefs.office ? '' : 'none';

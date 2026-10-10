@@ -30,6 +30,13 @@ test('speedFor maps wpm to a clamped Kokoro speed', () => {
   assert.equal(kokoro.speedFor(178), 1); assert.equal(kokoro.speedFor(80), 0.5); assert.equal(kokoro.speedFor(400), 2); assert.equal(kokoro.speedFor(200), 1.1); assert.equal(kokoro.speedFor(205), 1.15);
 });
 
+test('setDtype switches the model and ignores junk', () => {
+  assert.equal(kokoro.dtype(), 'q8');
+  assert.equal(kokoro.setDtype('q8'), false); assert.equal(kokoro.setDtype('fp64'), false); assert.equal(kokoro.setDtype(''), false);
+  assert.equal(kokoro.setDtype('q4'), true); assert.equal(kokoro.dtype(), 'q4'); assert.equal(kokoro.status().dtype, 'q4');
+  assert.equal(kokoro.setDtype('q8'), true);
+});
+
 test('synth rejects when not installed', async () => {
   await assert.rejects(kokoro.synth('hi', 'af_heart', 1, path.join(tmp, 'a.wav')), /not installed/);
 });

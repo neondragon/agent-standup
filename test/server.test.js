@@ -28,6 +28,13 @@ test('system voices are unchanged', async () => {
   assert.equal(v.engine, 'system'); assert.equal(typeof v.available, 'boolean');
 });
 
+test('the page can pick the kokoro model', async () => {
+  const v = await (await get('/api/voices?engine=kokoro&dtype=q4')).json(); assert.equal(v.dtype, 'q4');
+  const st = await (await get('/api/kokoro')).json(); assert.equal(st.dtype, 'q4');
+  const back = await (await get('/api/voices?engine=kokoro&dtype=q8')).json(); assert.equal(back.dtype, 'q8');
+  const junk = await (await get('/api/voices?engine=kokoro&dtype=fp64')).json(); assert.equal(junk.dtype, 'q8');
+});
+
 test('kokoro tts returns a wav once installed', async () => {
   const d = path.join(tmp, 'node_modules', 'kokoro-js'); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'package.json'), '{}');
   const v = await (await get('/api/voices?engine=kokoro')).json();

@@ -419,8 +419,8 @@ function listVoices() {
   } catch {}
   return (sayVoices = { available: voices.length > 0, voices, platform: process.platform });
 }
-function voicesFor(engine) {   // the voice list the page asks for: Kokoro when installed and alive, else the system voices
-  if (engine === 'kokoro') { const st = kokoro.status(); if (st.installed && !st.gaveUp) kokoro.warm(); return { available: st.installed && !st.gaveUp, voices: kokoro.voices(), platform: process.platform, engine: 'kokoro' }; }
+function voicesFor(engine, dtype) {   // the voice list the page asks for: Kokoro when installed and alive, else the system voices
+  if (engine === 'kokoro') { if (dtype) kokoro.setDtype(dtype); const st = kokoro.status(); if (st.installed && !st.gaveUp) kokoro.warm(); return { available: st.installed && !st.gaveUp, voices: kokoro.voices(), platform: process.platform, engine: 'kokoro', dtype: st.dtype }; }
   return { ...listVoices(), engine: 'system' };
 }
 const ttsDir = path.join(os.tmpdir(), 'agent-standup-tts');
@@ -445,7 +445,7 @@ function tts(text, voice, rate, engine = 'system') {
   if (engine === 'kokoro') { if (!kokoro.hasVoice(voice)) return Promise.reject(new Error('unknown voice')); }
   else { const vs = listVoices(); if (!vs.available || !vs.voices.some((v) => v.name === voice)) return Promise.reject(new Error('unknown voice')); }
   [text, rate] = ttsNorm(text, rate);
-  const key = ttsKey(engine, voice, rate, text), file = path.join(ttsDir, key + '.wav');
+  const key = ttsKey(engine === 'kokoro' ? 'kokoro:' + kokoro.dtype() : engine, voice, rate, text), file = path.join(ttsDir, key + '.wav');
   if (fs.existsSync(file)) return Promise.resolve(file);
   if (ttsJobs.has(key)) return ttsJobs.get(key);
   fs.mkdirSync(ttsDir, { recursive: true });
@@ -458,7 +458,7 @@ function tts(text, voice, rate, engine = 'system') {
 async function ttsStream(text, voice, rate, res) {
   if (!kokoro.hasVoice(voice)) throw new Error('unknown voice');
   [text, rate] = ttsNorm(text, rate);
-  const key = ttsKey('kokoro', voice, rate, text), file = path.join(ttsDir, key + '.wav');
+  const key = ttsKey('kokoro:' + kokoro.dtype(), voice, rate, text), file = path.join(ttsDir, key + '.wav');
   const head = () => res.writeHead(200, { 'content-type': 'application/octet-stream', 'x-sample-rate': '24000', 'cache-control': 'no-store' });
   const frame = (pcm) => { if (res.destroyed) return; const h = Buffer.alloc(4); h.writeUInt32LE(pcm.length, 0); res.write(Buffer.concat([h, pcm])); };
   let job = ttsJobs.get(key);
@@ -503,7 +503,7 @@ function start(port = PORT) {
     }
     if (url.pathname === '/api/health') return json({ claude: findClaude(), apiKey: !!process.env.ANTHROPIC_API_KEY, trError: lastTrError, platform: process.platform });
     if (url.pathname === '/api/warm') { trWorkers.forEach((w) => { if (!w.p) w.start(); }); return json({ ok: true }); }
-    if (url.pathname === '/api/voices') return json(voicesFor(url.searchParams.get('engine') || 'system'));
+    if (url.pathname === '/api/voices') return json(voicesFor(url.searchParams.get('engine') || 'system', url.searchParams.get('dtype')));
     if (url.pathname === '/api/tts') {
       if (url.searchParams.get('stream') && url.searchParams.get('engine') === 'kokoro') {
         return ttsStream(url.searchParams.get('text') || '', url.searchParams.get('voice'), url.searchParams.get('rate'), res)
