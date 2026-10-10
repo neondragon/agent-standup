@@ -107,16 +107,16 @@ characters; the lead gets the first.
 
 ### Client (`public/index.html`)
 
-- `prefs.engine`: `'kokoro'` or `'system'`. Default `'kokoro'`; the client
+- `prefs.kokoro`: boolean, default `true`; the client
   falls back to system voices whenever Kokoro is unavailable, so the default
   costs nothing before the install.
 - ⚙ → Sound gains, under *Agent voices*:
-  - a switch **Natural voices (Kokoro)** bound to `prefs.engine`;
+  - a switch **Natural voices (Kokoro)** bound to `prefs.kokoro`;
   - when not installed, a box with **Install (one-time, ~520 MB)** and a
     status line; while installing, the status line shows the log tail and the
     page polls `/api/kokoro` every 2 s; on success the voice pool reloads.
 - `TTS.init()` fetches `/api/voices?engine=kokoro` when
-  `prefs.engine === 'kokoro'`; if `available` is false it fetches the system
+  `prefs.kokoro` is true; if `available` is false it fetches the system
   list as today. `TTS.engine` records which one is in use and `TTS.buf()` passes
   it to `/api/tts`.
 - `rankVoices()` is bypassed for Kokoro: the server's order is used and the
