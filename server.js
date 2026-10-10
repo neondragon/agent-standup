@@ -21,6 +21,7 @@ const blocks = (rec) => {
   return Array.isArray(c) ? c : [];
 };
 const clip = (x, n = 700) => String(x == null ? '' : x).slice(0, n);
+const HARNESS = /<(system-reminder|browser_instruction|ide_selection|ide_opened_file|task-notification|command-name|command-message|command-args|local-command-stdout|local-command-caveat)>[\s\S]*?<\/\1>\s*/g;
 // What each tool call looks like on a screen ("d"), plus its id/timestamp so the result can be matched later.
 const toolLabel = (b, ts) => {
   const i = b.input || {};
@@ -154,13 +155,25 @@ function boardRows0() {
   });
 }
 // Most recently active session (optionally limited to one project dir) — drives the live feed.
-function currentSession(projFilter, idFilter) {
+// The session a live page follows: the newest one in the project (a workspace folder matches its own sessions and those of
+// its subfolders). While the followed session is still active it is kept, so another session writing elsewhere does not
+// steal the call mid-line; `stick` is { proj, id } of what the page follows now.
+const STICK_MS = 90000;
+function sessionMtime(proj, id) {
+  try {
+    let m = fs.statSync(path.join(ROOT, proj, id + '.jsonl')).mtimeMs; const sd = path.join(ROOT, proj, id, 'subagents');
+    if (fs.existsSync(sd)) for (const x of fs.readdirSync(sd)) m = Math.max(m, fs.statSync(path.join(sd, x)).mtimeMs);
+    return m;
+  } catch { return 0; }
+}
+function currentSession(projFilter, idFilter, stick) {
+  if (stick && stick.id && stick.proj && /^[\w.\-]+$/.test(stick.id) && /^[\w.\-]+$/.test(stick.proj) && Date.now() - sessionMtime(stick.proj, stick.id) < STICK_MS) return { proj: stick.proj, id: stick.id, mtime: sessionMtime(stick.proj, stick.id) };
   if (idFilter && projFilter && projFilter !== '..' && idFilter !== '..' && /^[\w.\-]+$/.test(idFilter) && /^[\w.\-]+$/.test(projFilter) && fs.existsSync(path.join(ROOT, projFilter, idFilter + '.jsonl'))) return { proj: projFilter, id: idFilter, mtime: Date.now() };   // pinned from the board
   let best = null;
   if (!fs.existsSync(ROOT)) return {};
   const consider = (proj, id, m) => { if (!best || m > best.mtime) best = { proj, id, mtime: m }; };
   for (const proj of fs.readdirSync(ROOT)) {
-    if (projFilter && proj !== projFilter) continue;
+    if (projFilter && proj !== projFilter && !proj.startsWith(projFilter + '-')) continue;   // the folder, or a folder inside it
     const dir = path.join(ROOT, proj); let files;
     try { files = fs.readdirSync(dir); } catch { continue; }
     for (const f of files) {
@@ -214,7 +227,8 @@ function parseRecord(st, r) {
     }
     if (items.length) st.raw.push({ ts, agent, kind: 'results', items });
     if (agent !== 'main') return;   // a sub-agent's first user message is the order, emitted from the parent's side
-    const txt = blocks(r).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+    // what the human typed, without the blocks the harness wraps around it (reminders, browser/IDE context, command echoes)
+    const txt = blocks(r).filter((b) => b.type === 'text').map((b) => b.text).join('\n').replace(HARNESS, '').replace(/^\s*\[Request interrupted[^\]]*\]\s*/i, '').trim();
     if (txt && !/^<(system-reminder|command-|local-command|task-notification)/.test(txt) && !r.isMeta) st.raw.push({ ts, agent: 'user', kind: 'user', text: txt });
   } else if (r.type === 'assistant') {
     const m = r.message || {};
@@ -515,7 +529,7 @@ function start(port = PORT) {
     }
     if (url.pathname === '/api/kokoro') return json(kokoro.status());
     if (url.pathname === '/api/kokoro/install' && req.method === 'POST') return json(kokoro.install());
-    if (url.pathname === '/api/current') return json(currentSession(url.searchParams.get('proj') || '', url.searchParams.get('id') || ''));
+    if (url.pathname === '/api/current') return json(currentSession(url.searchParams.get('proj') || '', url.searchParams.get('id') || '', { proj: url.searchParams.get('curproj') || '', id: url.searchParams.get('cur') || '' }));
     if (url.pathname === '/api/board') return json(boardRows());
     if (url.pathname === '/api/session') {
       const proj = url.searchParams.get('proj') || '', sid = url.searchParams.get('id') || '', SAFE = /^[\w.\-]+$/;

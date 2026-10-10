@@ -1446,9 +1446,11 @@ async function fillProjects() {   // live view: follow the latest activity anywh
 }
 $('#liveProj').onchange = () => { prefs.proj = $('#liveProj').value; S.pin = ''; savePrefs(); S.cur = null; followCurrent(); };
 async function followCurrent() {
-  const cur = await (await fetch('/api/current?proj=' + encodeURIComponent(Q.get('proj') || prefs.proj || '') + (S.pin ? '&id=' + encodeURIComponent(S.pin) : ''))).json();
+  const stick = S.cur ? `&cur=${encodeURIComponent(S.cur.id)}&curproj=${encodeURIComponent(S.cur.proj)}` : '';   // keep the session being followed while it is active
+  const cur = await (await fetch('/api/current?proj=' + encodeURIComponent(Q.get('proj') || prefs.proj || '') + (S.pin ? '&id=' + encodeURIComponent(S.pin) : '') + stick)).json();
   if (!cur.id) { $('#empty').classList.add('on'); return false; } $('#empty').classList.remove('on');
   if (S.cur && S.cur.id === cur.id && S.cur.proj === cur.proj) return false;
+  if (S.cur) await voiceDone();   // a line being spoken finishes before the call moves to another session
   if (!(await loadSession(cur.proj, cur.id))) return false;
   const start = Math.max(0, S.events.length - 16); recomputeStatus(start); S.idx = start; trNew(start); paintStatus();
   if (!S.locked && !S.userPaused) run(start); return true;

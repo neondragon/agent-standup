@@ -201,7 +201,7 @@ The website counts visits anonymously (a 1-pixel file hosted on GitHub per chann
 
 ## Troubleshooting
 
-- **Nothing happens / "Waiting for a session"** — start Claude Code in the open folder; with `onlyThisWorkspace` the call follows that folder.
+- **Nothing happens / "Waiting for a session"** — start Claude Code in the open folder; with `onlyThisWorkspace` the call follows that folder (sessions started in a subfolder of it count too). A session being followed is kept while it is active; the call moves to a newer one only after 90 s of silence, and never mid-sentence.
 - **Panel is blank** — use **Open in browser**; if you set a fixed `agentStandup.port` it may be taken (use `0`).
 - **Two voices at once (e.g. French and English)** — update to ≥ 1.8.1: only one window plays sound now. A line that could not be translated in time is read by an English voice, not by a French voice reading English.
 - **No sound** — press **Join** (or Play) once; check 🔊 isn't muted and *Agent voices* is on in ⚙.

@@ -26,7 +26,7 @@ function wavHeader(bytes, rate) {   // 16-bit PCM mono
 const wav = (samples, rate) => { const pcm = pcm16(samples); return Buffer.concat([wavHeader(pcm.length, rate), pcm]); };
 // Pieces a line is spoken in when streaming: sentences, and long sentences cut at clause boundaries, so the first sound comes fast.
 function pieces(text) {
-  const out = [], sents = String(text).match(/[^.!?…]+(?:[.!?…]+["')\]]*)?\s*/g) || [String(text)];
+  const out = [], sents = String(text).split(/(?<=[.!?…]["')\]]*)\s+/);   // a sentence ends at punctuation followed by a space: "2.3 seconds" stays whole
   for (const s of sents) {
     const t = s.trim(); if (!t) continue;
     if (t.length <= 110) { out.push(t); continue; }
