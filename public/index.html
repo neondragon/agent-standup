@@ -1706,8 +1706,8 @@ $('#langSeg').onclick = (e) => { const b = e.target.closest('button'); if (!b) r
 $('#modeSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); };
 $('#menu').onclick = (e) => { const b = e.target.closest('.mi[data-t]'); if (!b) return; prefs[b.dataset.t] = !prefs[b.dataset.t]; savePrefs(); if (prefs[b.dataset.t] && ['voice', 'office', 'music', 'notify', 'meme'].includes(b.dataset.t)) claimAudio(); b.querySelector('.sw').classList.toggle('on', prefs[b.dataset.t]); AUD.apply(); if (b.dataset.t === 'office') $('#officeBox').style.display = prefs.office ? '' : 'none'; if (b.dataset.t === 'reactions') document.body.classList.toggle('react', prefs.reactions); if (b.dataset.t === 'roster') { document.body.classList.toggle('rost', prefs.roster); paintStates(); } if (b.dataset.t === 'notify' && prefs.notify) askNotify(); if (b.dataset.t === 'vanish' && !prefs.vanish) { S.gone.clear(); paintStatus(); }
   if (b.dataset.t === 'music') { $('#musicBox').style.display = prefs.music ? '' : 'none'; if (prefs.music) { AUD.init(); AUD.apply(); } }
-};
   if (b.dataset.t === 'meme') { $('#memeBox').style.display = prefs.meme ? '' : 'none'; if (prefs.meme) AUD.init(); MEME.apply(); }
+};
 $('#station').innerHTML = STATIONS.map((s) => `<option value="${s.id}">📻 ${s.name}</option>`).join('');
 $('#station').value = prefs.station; $('#musicVol').value = prefs.musicVol; $('#musicBox').style.display = prefs.music ? '' : 'none';
 $('#station').onchange = (e) => { prefs.station = e.target.value; savePrefs(); AUD.init(); RADIO.sync(); };
@@ -1747,11 +1747,11 @@ $('#officeVol').oninput = (e) => { prefs.officeVol = +e.target.value; savePrefs(
 const showVspeed = () => { $('#vspeed').value = vspeed(); $('#vspeedVal').textContent = '×' + vspeed().toFixed(2).replace(/0$/, ''); }; showVspeed();
 $('#vspeed').oninput = (e) => { prefs.voiceSpeed = +e.target.value; savePrefs(); showVspeed(); };
 $('#musicVol').oninput = (e) => { prefs.musicVol = +e.target.value; savePrefs(); AUD.applyMusic(); };
-$('#tok').onclick = () => openRecap();
 const showMemeLvl = () => { const l = prefs.memeLevel ?? 11; $('#memeLvl').value = l; $('#memeLvlVal').textContent = l + ' / 11' + (l === 11 ? ' 🔥' : ''); }; showMemeLvl();
 $('#memeLvl').oninput = (e) => { prefs.memeLevel = +e.target.value; savePrefs(); showMemeLvl(); };
 $('#memeVol').value = prefs.memeVol ?? 0.8; $('#memeBox').style.display = prefs.meme ? '' : 'none';
 $('#memeVol').oninput = (e) => { prefs.memeVol = +e.target.value; savePrefs(); MEME.apply(); };
+$('#tok').onclick = () => openRecap();
 $('#bMenu').onclick = (e) => { e.stopPropagation(); $('#menu').classList.toggle('on'); kokoroUI(); };
 document.addEventListener('click', (e) => { if (!e.target.closest('#menu') && !e.target.closest('#bMenu')) $('#menu').classList.remove('on'); });
 $('#bLog').onclick = () => { document.body.classList.toggle('log'); $('#bLog').classList.toggle('on'); };
