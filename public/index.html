@@ -160,6 +160,7 @@
   .arm.l { transform-origin:27px 48px } .arm.r { transform-origin:73px 48px } .tile.speaking .arm.r { animation:wave .7s ease-in-out infinite } @keyframes wave { 50% { transform:rotate(-34deg) } }
   .tile.working .arm { display:none } .tile .laptop, .tile .hands, .tile .sparks, .tile .grin, .tile .eyes-happy, .tile .mouth { display:none }
   .tile.working .laptop, .tile.working .hands, .tile.done .sparks, .tile.done .eyes-happy { display:inline } .tile.done .eyes-open { display:none }
+  .tile.lead.done .eyes-open { display:inline } .tile.lead.done .eyes-happy { display:none }   /* the lead's 'done' is just 'your turn': it idles and speaks with its eyes open, not the sub-agents' happy squint */
   .tile.speaking .mouth { display:inline } .tile.speaking .smile, .tile.speaking .grin { display:none } .tile.done:not(.speaking) .smile { display:none } .tile.done:not(.speaking) .grin { display:inline }
   .hand { animation:none } .tile.typing .hand { animation:type .34s ease-in-out infinite } .tile.typing .hand.r { animation-delay:-.17s } @keyframes type { 50% { transform:translateY(-1.3px) } }
   /* thinking: a tool is not running, the model is: eyes up and away, one brow up, a slow sway, and three dots above the head */
@@ -403,9 +404,9 @@ function avatarSVG(p, o, uid = '') {   // uid keeps SVG ids unique per instance:
   const eye = (x) => `<g class="eye"><ellipse cx="${x}" cy="${fy}" rx="${eg.rx}" ry="${eg.ry}" fill="${ink}"/><g class="pupil"><circle cx="${x + 1}" cy="${fy - 1.5}" r="1.1" fill="#fff"/><circle cx="${x - 1}" cy="${fy + 1.4}" r=".55" fill="#fff" opacity=".7"/></g></g>`;
   const happy = (x) => `<path d="M${x - 3.6} ${fy + 1.4}Q${x} ${fy - 4.2} ${x + 3.6} ${fy + 1.4}" fill="none" stroke="${ink}" stroke-width="1.7" stroke-linecap="round"/>`;
   const brow = (x, s) => `<path class="brow ${s}" d="M${x - 3.6} ${fy - eg.ry - 3}q3.6-2 7.2 0" fill="none" stroke="${ink}" stroke-width="1.4" stroke-linecap="round"/>`;
-  const my = fy + 10.5, working = st && o.working, done = st && o.done, speaking = st && o.m > 0, mopen = st && o.m === 2;
+  const my = fy + 10.5, working = st && o.working, done = st && o.done, squint = done && !p.lead, speaking = st && o.m > 0, mopen = st && o.m === 2;   // the lead keeps its eyes open when done (that state means 'your turn', not a finished job)
   const face = `${bot ? '<rect x="33" y="29" width="34" height="26" rx="9" fill="#1d2138"/>' : `<ellipse cx="${ex[0] - 6}" cy="${fy + 6}" rx="3.3" ry="2" fill="#ff6f91" opacity=".34"/><ellipse cx="${ex[1] + 6}" cy="${fy + 6}" rx="3.3" ry="2" fill="#ff6f91" opacity=".34"/>`}
-    ${V('eyes-open', !done, eye(ex[0]) + eye(ex[1]))}${V('eyes-happy', done, happy(ex[0]) + happy(ex[1]))}${brow(ex[0], 'l')}${brow(ex[1], 'r')}
+    ${V('eyes-open', !squint, eye(ex[0]) + eye(ex[1]))}${V('eyes-happy', squint, happy(ex[0]) + happy(ex[1]))}${brow(ex[0], 'l')}${brow(ex[1], 'r')}
     ${V('smile', !speaking && !done, `<path d="M${46} ${my}q4 3.6 8 0" fill="none" stroke="${ink}" stroke-width="1.6" stroke-linecap="round"/>`)}
     ${V('grin', done && !speaking, `<path d="M44.5 ${my - .6}q5.5 8 11 0z" fill="${bot ? '#8ff0ff' : '#4b1c2c'}"/>`)}
     ${V('mouth', speaking, `<ellipse class="mouthE" cx="50" cy="${my + 1}" rx="${mopen ? 4 : 4.6}" ry="${mopen ? 4.4 : .9}" fill="${bot ? '#8ff0ff' : '#4b1c2c'}"/>`)}
