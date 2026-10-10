@@ -43,7 +43,7 @@ const nameOf = (id) => (((typeof S !== 'undefined' && S.agents) || {})[id] || {}
 
 const MEME = {
   CORE, on: false, bus: null, nb: null, clips: new Map(), guard: new CORE.FlashGuard(), last: {}, timer: 0, rm: false,
-  CLIPS: { omg: '/sfx/oh-my-god.mp3' },   // bundled clips: name → file under public/
+  CLIPS: { omg: '/sfx/oh-my-god.mp3', scratch1: '/sfx/scratch-1.mp3', scratch2: '/sfx/scratch-2.mp3', scratch3: '/sfx/scratch-3.mp3' },   // bundled clips: name → file under public/
   PAL: ['#fff', '#ffe600', '#ff3b3b', '#3bff6e', '#52d8ff', '#ff5cf0'],
   WINS: () => ['GG', 'W', 'EZ', 'POGGERS', 'NO SCOPE', 'OH BABY', 'BASED', 'SHEEEESH', 'CERTIFIED HOOD CLASSIC', 'ABSOLUTE UNIT', 'LET HIM COOK'].concat(T(['BIEN OUEJ', 'C’EST PAS FAUX', 'OKLM', 'MAIS OUI C’EST CLAIR'], [])),
   FAILS: () => ['BRUH', 'TASK FAILED SUCCESSFULLY', 'OH NO', 'EMOTIONAL DAMAGE', 'SKILL ISSUE', 'IT’S OVER', 'RIP', 'F IN THE CHAT', 'WHO DID THIS', 'WORKS ON MY MACHINE', 'CRINGE'].concat(T(['OH LE BOULET', 'C’EST LA CATA', 'MAIS NON', 'LA FRANCE A PEUR'], [])),
@@ -76,7 +76,10 @@ const MEME = {
   // ---------- what each event does ----------
   ON: {
     talk(i) { if (i.id === 'user') return this.ON.user.call(this, i); if (!this.rest('talk', 0.5)) return; this.zoom(i.id); if (this.roll()) this.kinetic(i.text); if (this.cfg().level >= 9 && this.roll(0.6)) this.fry(i.id); },
-    user() { if (!this.rest('user', 2)) return; this.scratch(); this.topBottom(T('L’HUMAIN EST', 'THE HUMAN HAS'), T('ENTRÉ DANS LE CHAT', 'ENTERED THE CHAT')); this.flash('rgba(255,255,255,.5)'); if (this.roll()) this.rain(['👀', '😳', '🫡'], Math.round(this.cfg().particles / 2)); },
+    interrupt() {   // the human's message cut a line that was being read: a real record scratch, one of three (user() then skips its synthesised one)
+      this.scratched = performance.now(); this.clip('scratch' + (1 + Math.floor(Math.random() * 3)), () => this.scratch());
+    },
+    user() { if (!this.rest('user', 2)) return; if (performance.now() - (this.scratched || 0) > 2500) this.scratch(); this.topBottom(T('L’HUMAIN EST', 'THE HUMAN HAS'), T('ENTRÉ DANS LE CHAT', 'ENTERED THE CHAT')); this.flash('rgba(255,255,255,.5)'); if (this.roll()) this.rain(['👀', '😳', '🫡'], Math.round(this.cfg().particles / 2)); },
     order(i) {
       if (!this.rest('order')) return; this.airhorn(1); const r = this.rect(i.to); if (r) this.flare(r.cx, r.cy, Math.max(200, r.w * 1.2));
       this.slam(T(`${nameOf(i.to)} DÉPLOYÉ`, `DEPLOYING ${nameOf(i.to)}`), { size: 56, color: '#ffe600' }); if (this.roll(0.5)) this.flash('rgba(255,230,0,.35)');

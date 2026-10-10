@@ -319,6 +319,7 @@ Object.assign(prefs, savedPrefs && typeof savedPrefs === 'object' ? savedPrefs :
 if (prefs.vstyle === 'babble') prefs.vstyle = 'animal', prefs.vstyleChosen = true;
 if (!prefs.vstyleChosen && (prefs.vstyle === 'animal' || prefs.vstyle === 'sims')) prefs.vstyle = 'cartoon';   // the gibberish styles are opt-in: understandable voices by default
 if (!prefs.vstyleChosen && prefs.kokoro !== false) prefs.vstyle = 'kokoro'; delete prefs.kokoro;   // the Kokoro switch of earlier builds is now the 'kokoro' style
+if (prefs.meme && !prefs.office && !prefs.officeChosen) prefs.office = true;   // meme mode plays the office sounds (typing included) unless Office ambience was switched off by hand
 let prefsT = 0;
 const savePrefs = () => { try { localStorage.setItem('cc.prefs', JSON.stringify(prefs)); } catch {} clearTimeout(prefsT); prefsT = setTimeout(() => fetch('/api/prefs', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(prefs), keepalive: true }).catch(() => {}), 250); };   // sliders fire a lot: one write per burst
 if (!(savedPrefs && typeof savedPrefs === 'object') && Object.keys(localPrefs).length) savePrefs();   // first run with a server store: carry over what this origin remembered
@@ -1462,7 +1463,7 @@ async function run(i) {
         if (e2.kind !== 'order' && isSub(e2.agent) && !group.some((g) => g.agent === e2.agent)) { group.push(e2); j++; } else break;
       }
     }
-    if (ev.kind === 'user' && S.voiceTok) S.voiceTok.stop = true;   // a new human message ends the previous turn: cut whatever is still being read, the human is done with it
+    if (ev.kind === 'user' && S.voiceTok) { if (!S.voiceTok.stop && S.speakers.size) MEME.fire('interrupt'); S.voiceTok.stop = true; }   // a new human message ends the previous turn: cut whatever is still being read (meme mode: record scratch), the human is done with it
     await voiceDone(); if (token !== S.token) return;   // the previous line finishes before this one starts; tool events never waited for it
     if (FR() && !S.hurry) { prefetchTr(i); await Promise.race([ensureTr(group.map((g) => baseText(g))), sleep(S.live ? 7000 : 14000)]); if (token !== S.token) return; }
     prefetchQuips(i);
@@ -1704,9 +1705,12 @@ function setView(v) { prefs.view = v; savePrefs(); document.body.classList.toggl
 $('#viewSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); };
 $('#langSeg').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; prefs.lang = b.dataset.l; prefs.langChosen = true; savePrefs(); if (FR()) fetch('/api/warm').catch(() => {}); AUD.stopAll(); synth && synth.cancel(); applyLang(); if (FR()) prefetchTr(S.idx); };
 $('#modeSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); };
-$('#menu').onclick = (e) => { const b = e.target.closest('.mi[data-t]'); if (!b) return; prefs[b.dataset.t] = !prefs[b.dataset.t]; savePrefs(); if (prefs[b.dataset.t] && ['voice', 'office', 'music', 'notify', 'meme'].includes(b.dataset.t)) claimAudio(); b.querySelector('.sw').classList.toggle('on', prefs[b.dataset.t]); AUD.apply(); if (b.dataset.t === 'office') $('#officeBox').style.display = prefs.office ? '' : 'none'; if (b.dataset.t === 'reactions') document.body.classList.toggle('react', prefs.reactions); if (b.dataset.t === 'roster') { document.body.classList.toggle('rost', prefs.roster); paintStates(); } if (b.dataset.t === 'notify' && prefs.notify) askNotify(); if (b.dataset.t === 'vanish' && !prefs.vanish) { S.gone.clear(); paintStatus(); }
+$('#menu').onclick = (e) => { const b = e.target.closest('.mi[data-t]'); if (!b) return; prefs[b.dataset.t] = !prefs[b.dataset.t]; savePrefs(); if (prefs[b.dataset.t] && ['voice', 'office', 'music', 'notify', 'meme'].includes(b.dataset.t)) claimAudio(); b.querySelector('.sw').classList.toggle('on', prefs[b.dataset.t]); AUD.apply(); if (b.dataset.t === 'office') { prefs.officeChosen = true; savePrefs(); $('#officeBox').style.display = prefs.office ? '' : 'none'; } if (b.dataset.t === 'reactions') document.body.classList.toggle('react', prefs.reactions); if (b.dataset.t === 'roster') { document.body.classList.toggle('rost', prefs.roster); paintStates(); } if (b.dataset.t === 'notify' && prefs.notify) askNotify(); if (b.dataset.t === 'vanish' && !prefs.vanish) { S.gone.clear(); paintStatus(); }
   if (b.dataset.t === 'music') { $('#musicBox').style.display = prefs.music ? '' : 'none'; if (prefs.music) { AUD.init(); AUD.apply(); } }
-  if (b.dataset.t === 'meme') { $('#memeBox').style.display = prefs.meme ? '' : 'none'; if (prefs.meme) AUD.init(); MEME.apply(); }
+  if (b.dataset.t === 'meme') {
+    $('#memeBox').style.display = prefs.meme ? '' : 'none'; if (prefs.meme) AUD.init(); MEME.apply();
+    if (prefs.meme && !prefs.office) { prefs.office = true; savePrefs(); $('#menu .mi[data-t="office"] .sw').classList.add('on'); $('#officeBox').style.display = ''; AUD.apply(); }   // the memes come with the office: keyboards, clicks, the coffee machine
+  }
 };
 $('#station').innerHTML = STATIONS.map((s) => `<option value="${s.id}">📻 ${s.name}</option>`).join('');
 $('#station').value = prefs.station; $('#musicVol').value = prefs.musicVol; $('#musicBox').style.display = prefs.music ? '' : 'none';
@@ -1774,7 +1778,7 @@ addEventListener('keydown', (e) => {
 if (EMBED) $('#mBrowser').style.display = '';
 
 (async function init() {
-  if (Q.get('meme') === '1') { prefs.meme = true; $('#memeBox').style.display = ''; }   // a link can force meme mode (demo links)
+  if (Q.get('meme') === '1') { prefs.meme = true; prefs.office = true; $('#memeBox').style.display = ''; }   // a link can force meme mode (demo links)
   document.body.classList.toggle('rost', prefs.roster !== false); document.body.classList.toggle('react', !!prefs.reactions); setView(prefs.view); applyLang(); MEME.apply(); applyMute(); TTS.init().then(updateHint).then(kokoroUI);
   loadHealth().then(() => {   // French by default only if translation can actually work; otherwise stay in English without a warning
     const h = S.health || {};

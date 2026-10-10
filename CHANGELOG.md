@@ -8,7 +8,7 @@
 - Tiles show **thinking** (eyes away, thought dots) and **typing** (hands move only while a tool runs); the lead keeps its eyes open when done (that means "your turn").
 - Live: the followed session is kept while it is active (no switch mid-line); a workspace folder matches sessions in its subfolders; harness tags are stripped from spoken human text; a decimal point is not a sentence end.
 - **Settings persist** in `~/.config/agent-standup/prefs.json` (shared by every window; an automatic port made localStorage forget them). The settings menu scrolls on a short window.
-- **Meme mode** (⚙ → 🔥, intensity 1–11): airhorns, hitmarkers, Impact captions, vine booms, star wipes, emoji rain over the same call. Off by default.
+- **Meme mode** (⚙ → 🔥, intensity 1–11): airhorns, hitmarkers, Impact captions, vine booms, star wipes, emoji rain over the same call; a real record scratch when your message cuts a line being read; it turns the office ambience (typing included) on. Off by default.
 - `npm test` (node's test runner, a stub voice worker); tests are kept out of the vsix.
 
 ## 1.19.2
