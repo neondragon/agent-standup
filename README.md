@@ -42,7 +42,7 @@ _A fictional team fixing a slow login page — the built-in demo (⚙ → Source
 - **Terminal** — `❯ command` (with its description), then its **real output** (first lines, errors in red, “… +N lines”), `● Grep(…)` / `● Glob(…)` with matches, a spinner for what is still running. Footer: `✓ Bash · 1.2 s` or `⠋ Bash · running 3.4 s`.
 - **Editor** — for `Read`: the file with its real content and line numbers (read-only); for `Edit`: the removed/added lines; for `Write`: the new content, with the tool's result line.
 - **Task list** — if the agent keeps a todo list, a side panel shows it live (☐ pending, ◐ in progress, ☑ done).
-- The presenter's camera lip-syncs when they speak; the subtitle bar shows what they say.
+- The presenter's camera lip-syncs when they speak; the subtitle bar shows the sentence being said, as does the strip at the foot of each speaking tile (subtitles follow the voice, piece by piece). A screen share shows the latest activity: it stays up while others talk and is only replaced by the next share.
 
 **Click an agent** — its prompt, tool counts and a **Recent activity** list (last 30 calls with status, duration, and expandable command + output).
 

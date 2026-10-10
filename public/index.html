@@ -1136,9 +1136,8 @@ function renderPresent() {
   if (S.camFor !== id) { $('#pcam').innerHTML = avatarSVG(p, undefined, 'c' + p.gid + '_') + `<div class="tag"><b>${esc(p.name)}</b></div>`; S.camFor = id; }
   $('#pcam').classList.toggle('speaking', S.speakers.has(id));
 }
-function armPresent() {   // stays up while a command is still running, then ~12 s after the last action (a line starting elsewhere does not dismiss it)
-  clearTimeout(presentTimer); if (S.hold) return;
-  presentTimer = setTimeout(() => { if (S.present && S.run[S.present] && S.playing) armPresent(); else hidePresent(); }, 12000 / Math.max(1, spd() / 1.2));
+function armPresent() {   // a screen share shows the latest activity: it stays until another agent's share replaces it (no auto-hide)
+  clearTimeout(presentTimer);
 }
 function showPresent(id) {
   if (S.boost > 1) return;   // catching up; a speaker does not block the screen share, the voice carries on underneath
